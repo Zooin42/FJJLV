@@ -22,12 +22,14 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
  * 
  * PREREQUISITE: Open Browser DevTools Console before starting
  * 
- * TEST STEPS:
- * ───────────
+ * TEST STEPS (FIT-SCALE MODEL):
+ * ──────────────────────────────
  * 1) Import a PDF file
  *    - Navigate to page 4
- *    - Set zoom to 1.25 (125%)
- *    - Console should show: "SAVE reader_state" with { lastPage: 4, lastZoom: 1.25 }
+ *    - Adjust userZoom to 1.25 (125%) using zoom controls
+ *    - Console should show: 
+ *      "SAVE reader_state" with { lastPage: 4, lastZoom: 1.25 }
+ *      "→ Persisting userZoom: 1.25 (not finalScale)"
  * 
  * 2) Add a stamp on page 4
  *    - Click "＋ 添加标记" button
@@ -36,34 +38,54 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
  * 
  * 3) Click "← 返回" to go back to ImportPage
  *    - Import the SAME PDF file again (same file = same SHA-256 hash = same pdfId)
- *    - Console should show: "LOAD reader_state" with { lastPage: 4, lastZoom: 1.25 }
- *    - Console should show: "LOAD stamps" with page 4 data
+ *    - Console should show: 
+ *      "LOAD reader_state" with { lastPage: 4, lastZoom: 1.25 }
+ *      "→ userZoom will be restored to: 1.25"
+ *      "→ fitScale will be recomputed on page load"
+ *      "→ finalScale = fitScale × userZoom"
  * 
  *    ✅ EXPECTED BEHAVIOR:
  *       - Page is restored to 4 (check page indicator)
- *       - Zoom is restored to 1.25 (check zoom button shows "125%")
- *       - Stamp exists on page 4 at the same position
+ *       - userZoom is restored to 1.25 (check zoom button shows "125%")
+ *       - fitScale is recomputed based on current container size
+ *       - finalScale = fitScale × 1.25 (check DebugPanel if visible)
+ *       - Stamp exists on page 4 at the same position (aligned with PDF content)
  * 
- * 4) Open a NEW browser tab/window
- *    - Navigate to the app (http://localhost:3002)
- *    - Import the SAME PDF file
- *    - Console should show: "LOAD reader_state" and "LOAD stamps"
+ * 4) Test zoom/scroll alignment:
+ *    - Set userZoom to 1.5 (150%) → PDF becomes larger than container
+ *    - Verify scrollbars appear in viewer area (not whole page)
+ *    - Scroll PDF content → stamps should move with PDF (stay aligned)
+ *    - Set userZoom to 0.75 (75%) → PDF fits in container
+ *    - Verify no scrollbars, stamps still aligned
  * 
- *    ✅ EXPECTED BEHAVIOR:
- *       - Same restored state: page 4, zoom 1.25
- *       - Stamp visible at same position
+ * 5) Test window resize:
+ *    - Set userZoom to 1.25
+ *    - Resize browser window → fitScale recomputes, userZoom stays 1.25
+ *    - Verify stamps remain aligned to PDF content
  * 
- * HOW IT WORKS (Data Layer):
- * ───────────────────────────
+ * HOW IT WORKS (Fit-Scale Model):
+ * ────────────────────────────────
  * - Each PDF file has a unique identifier: pdfId = first 24 chars of SHA-256 hash
  * - Same file ALWAYS produces the same pdfId (content-based, not filename-based)
  * - localStorage keys: ltp_mvp::{pdfId}::reader_state and ltp_mvp::{pdfId}::stamps
- * - When you upload the same file again, pdfId matches → state is restored
+ * - reader_state persists: { lastPage, lastZoom } where lastZoom = userZoom (NOT finalScale)
+ * 
+ * Zoom Calculation:
+ * - fitScale = min(containerWidth/pageWidth, containerHeight/pageHeight)
+ * - finalScale = fitScale × userZoom
+ * - userZoom is user-controlled (0.5 - 3.0), persisted to localStorage
+ * - fitScale is auto-computed from container size, NOT persisted
+ * 
+ * Stamp Positioning:
+ * - Stamps use normalized coordinates (0-1) relative to page
+ * - Rendered position = normalized × renderedPageSize
+ * - renderedPageSize = pageDimensions × finalScale
+ * - Stamps overlay PDF in shared position:relative container
  * 
  * FAILURE DIAGNOSIS:
  * ──────────────────
  * If ANY step fails, the console will automatically log:
- *   - [PERSISTENCE CHECK] current pdfId
+ *   - [PERSISTENCE CHECK] current pdfId, page, userZoom, fitScale, finalScale
  *   - [PERSISTENCE CHECK] localStorage keys used
  *   - [PERSISTENCE CHECK] localStorage raw values
  * 
@@ -80,24 +102,54 @@ function ReaderPage() {
   
   const [numPages, setNumPages] = useState(null)
   const [pageNumber, setPageNumber] = useState(1)
-  const [scale, setScale] = useState(1.0)
+  const [userZoom, setUserZoom] = useState(1.0)
+  const [pageDimensions, setPageDimensions] = useState({ width: 0, height: 0 })
+  const [stageWidth, setStageWidth] = useState(0)
+  const [stageHeight, setStageHeight] = useState(0)
+  const [renderedPageSize, setRenderedPageSize] = useState({ width: 0, height: 0 })
+  const [stampsByPage, setStampsByPage] = useState({})
+  const [activePanel, setActivePanel] = useState('none')
+  const [showOnboarding, setShowOnboarding] = useState(false)
+
+  // 计算容器驱动的缩放比例
+  const fitScale = useMemo(() => {
+    if (!pageDimensions.width || !pageDimensions.height || !stageWidth || !stageHeight) {
+      return 1.0
+    }
+    
+    const fitWidthScale = stageWidth / pageDimensions.width
+    const fitHeightScale = stageHeight / pageDimensions.height
+    const computedFitScale = Math.min(fitWidthScale, fitHeightScale)
+    
+    if (import.meta.env.DEV) {
+      console.log('[fitScale calculation]', {
+        pageDimensions,
+        stageSize: { width: stageWidth, height: stageHeight },
+        fitWidthScale: fitWidthScale.toFixed(3),
+        fitHeightScale: fitHeightScale.toFixed(3),
+        fitScale: computedFitScale.toFixed(3)
+      })
+    }
+    
+    return computedFitScale
+  }, [pageDimensions.width, pageDimensions.height, stageWidth, stageHeight])
+
+  // 最终缩放 = fitScale × userZoom
+  const finalScale = fitScale * userZoom
 
   // DEV-only: Log state on every render
   if (import.meta.env.DEV) {
     console.log('[ReaderPage Render]', {
       pdfId,
       currentPage: pageNumber,
-      zoom: scale,
+      userZoom,
+      fitScale: fitScale.toFixed(3),
+      finalScale: finalScale.toFixed(3),
       hasPdfId: !!pdfId,
       hasCurrentPdf: !!currentPdf,
       pdfIdMatch: currentPdf?.pdfId === pdfId
     })
   }
-  const [stageWidth, setStageWidth] = useState(0)
-  const [stageHeight, setStageHeight] = useState(0)
-  const [stampsByPage, setStampsByPage] = useState({})
-  const [activePanel, setActivePanel] = useState('none')
-  const [showOnboarding, setShowOnboarding] = useState(false)
   
   const pdfStageRef = useRef(null)
   const hasLoadedState = useRef(false)
@@ -129,8 +181,9 @@ function ReaderPage() {
     
     // 重置为默认值
     setPageNumber(1)
-    setScale(1.0)
+    setUserZoom(1.0)
     setNumPages(null)
+    setPageDimensions({ width: 0, height: 0 })
 
     try {
       const savedState = localStorage.getItem(storageKey)
@@ -139,6 +192,9 @@ function ReaderPage() {
         
         if (import.meta.env.DEV) {
           console.log('LOAD reader_state', pdfId, storageKey, { lastPage, lastZoom })
+          console.log('  → userZoom will be restored to:', lastZoom)
+          console.log('  → fitScale will be recomputed on page load')
+          console.log('  → finalScale = fitScale × userZoom')
         }
         
         if (typeof lastPage === 'number' && lastPage > 0) {
@@ -146,7 +202,7 @@ function ReaderPage() {
         }
         
         if (typeof lastZoom === 'number' && lastZoom > 0) {
-          setScale(lastZoom)
+          setUserZoom(lastZoom)
         }
       } else {
         if (import.meta.env.DEV) {
@@ -200,17 +256,19 @@ function ReaderPage() {
     try {
       const state = {
         lastPage: pageNumber,
-        lastZoom: scale
+        lastZoom: userZoom
       }
       localStorage.setItem(storageKey, JSON.stringify(state))
       
       if (import.meta.env.DEV) {
         console.log('SAVE reader_state', pdfId, storageKey, state)
+        console.log('  → Persisting userZoom:', userZoom, '(not finalScale)')
+        console.log('  → finalScale is computed at runtime:', finalScale.toFixed(3))
       }
     } catch (error) {
       console.error('保存阅读状态失败:', error)
     }
-  }, [pdfId, pageNumber, scale, storageKey])
+  }, [pdfId, pageNumber, userZoom, storageKey])
 
   // 保存 Stamps 数据到 localStorage
   useEffect(() => {
@@ -255,7 +313,9 @@ function ReaderPage() {
       // Current state
       console.log('Current pdfId:', pdfId)
       console.log('Current page:', pageNumber)
-      console.log('Current zoom:', scale)
+      console.log('Current userZoom:', userZoom)
+      console.log('Current fitScale:', fitScale.toFixed(3))
+      console.log('Current finalScale:', finalScale.toFixed(3))
       console.log('Stamps count:', Object.values(stampsByPage).reduce((sum, arr) => sum + arr.length, 0))
       
       // localStorage keys
@@ -311,7 +371,7 @@ function ReaderPage() {
       clearTimeout(timer)
       delete window.__verifyPersistence
     }
-  }, [pdfId, pageNumber, scale, stampsByPage])
+  }, [pdfId, pageNumber, userZoom, finalScale, stampsByPage])
 
   // Guard: 缺少 pdfId（路由参数丢失）
   if (!pdfId) {
@@ -372,6 +432,41 @@ function ReaderPage() {
     })
   }
 
+  const handlePageLoadSuccess = (page) => {
+    const viewport = page.getViewport({ scale: 1 })
+    const { width, height } = viewport
+    
+    if (import.meta.env.DEV) {
+      console.log('[Page loaded]', {
+        page: pageNumber,
+        dimensions: { width: Math.round(width), height: Math.round(height) },
+        aspectRatio: (width / height).toFixed(3)
+      })
+    }
+    
+    setPageDimensions({ width, height })
+  }
+
+  // 计算实际渲染的 PDF 尺寸（应用 finalScale 后）
+  useEffect(() => {
+    if (pageDimensions.width && pageDimensions.height && finalScale) {
+      const renderedWidth = pageDimensions.width * finalScale
+      const renderedHeight = pageDimensions.height * finalScale
+      setRenderedPageSize({ width: renderedWidth, height: renderedHeight })
+      
+      if (import.meta.env.DEV) {
+        console.log('[Rendered page size]', {
+          original: pageDimensions,
+          finalScale: finalScale.toFixed(3),
+          rendered: { 
+            width: Math.round(renderedWidth), 
+            height: Math.round(renderedHeight) 
+          }
+        })
+      }
+    }
+  }, [pageDimensions.width, pageDimensions.height, finalScale])
+
   const goToPrevPage = () => {
     setPageNumber(prev => Math.max(1, prev - 1))
   }
@@ -381,15 +476,15 @@ function ReaderPage() {
   }
 
   const zoomIn = () => {
-    setScale(prev => Math.min(3.0, prev + 0.25))
+    setUserZoom(prev => Math.min(3.0, prev + 0.25))
   }
 
   const zoomOut = () => {
-    setScale(prev => Math.max(0.5, prev - 0.25))
+    setUserZoom(prev => Math.max(0.5, prev - 0.25))
   }
 
   const resetZoom = () => {
-    setScale(1.0)
+    setUserZoom(1.0)
   }
 
   const handleBack = () => {
@@ -398,7 +493,8 @@ function ReaderPage() {
       console.log('   Current state before leaving:')
       console.log('   - pdfId:', pdfId)
       console.log('   - page:', pageNumber)
-      console.log('   - zoom:', scale)
+      console.log('   - userZoom:', userZoom)
+      console.log('   - finalScale:', finalScale.toFixed(3))
       console.log('   - stamps:', Object.values(stampsByPage).reduce((sum, arr) => sum + arr.length, 0))
       
       // 验证localStorage中的数据
@@ -732,20 +828,28 @@ function ReaderPage() {
         </div>
         
         <div className="stage-dimensions">
-          <span className="dimension-label">舞台尺寸:</span>
+          <span className="dimension-label">容器:</span>
           <span className="dimension-value">
             {stageWidth} × {stageHeight}
           </span>
+          {renderedPageSize.width > 0 && (
+            <>
+              <span className="dimension-label" style={{ marginLeft: '12px' }}>渲染:</span>
+              <span className="dimension-value">
+                {Math.round(renderedPageSize.width)} × {Math.round(renderedPageSize.height)}
+              </span>
+            </>
+          )}
         </div>
         
         <div className="zoom-controls">
-          <button onClick={zoomOut} disabled={scale <= 0.5} title="缩小">
+          <button onClick={zoomOut} disabled={userZoom <= 0.5} title="缩小">
             −
           </button>
           <button onClick={resetZoom} className="zoom-reset" title="重置缩放">
-            {Math.round(scale * 100)}%
+            {Math.round(userZoom * 100)}%
           </button>
-          <button onClick={zoomIn} disabled={scale >= 3.0} title="放大">
+          <button onClick={zoomIn} disabled={userZoom >= 3.0} title="放大">
             +
           </button>
         </div>
@@ -757,40 +861,43 @@ function ReaderPage() {
 
       <main className="reader-content">
         <div className="pdf-stage" ref={pdfStageRef}>
-          <StampLayer
-            stamps={stampsByPage}
-            currentPage={pageNumber}
-            stageWidth={stageWidth}
-            stageHeight={stageHeight}
-            onStampPositionChange={handleStampPositionChange}
-            onStampUpdate={handleStampUpdate}
-          />
-          <Document
-            file={currentPdf.file}
-            onLoadSuccess={handleDocumentLoadSuccess}
-            loading={
-              <div className="loading-message">
-                <div className="spinner-large"></div>
-                <p>正在加载 PDF...</p>
-              </div>
-            }
-            error={
-              <div className="error-message">
-                <p>❌ 加载 PDF 失败</p>
-                <button onClick={handleBack}>返回</button>
-              </div>
-            }
-          >
-            <Page 
-              pageNumber={pageNumber} 
-              scale={scale}
+          <div className="pdf-content-wrapper">
+            <Document
+              file={currentPdf.file}
+              onLoadSuccess={handleDocumentLoadSuccess}
               loading={
                 <div className="loading-message">
                   <div className="spinner-large"></div>
+                  <p>正在加载 PDF...</p>
                 </div>
               }
+              error={
+                <div className="error-message">
+                  <p>❌ 加载 PDF 失败</p>
+                  <button onClick={handleBack}>返回</button>
+                </div>
+              }
+            >
+              <Page 
+                pageNumber={pageNumber} 
+                scale={finalScale}
+                onLoadSuccess={handlePageLoadSuccess}
+                loading={
+                  <div className="loading-message">
+                    <div className="spinner-large"></div>
+                  </div>
+                }
+              />
+            </Document>
+            <StampLayer
+              stamps={stampsByPage}
+              currentPage={pageNumber}
+              stageWidth={renderedPageSize.width}
+              stageHeight={renderedPageSize.height}
+              onStampPositionChange={handleStampPositionChange}
+              onStampUpdate={handleStampUpdate}
             />
-          </Document>
+          </div>
         </div>
       </main>
 
@@ -817,7 +924,9 @@ function ReaderPage() {
         <DebugPanel
           pdfId={pdfId}
           currentPage={pageNumber}
-          zoom={scale}
+          zoom={userZoom}
+          fitScale={fitScale}
+          finalScale={finalScale}
           stampsByPage={stampsByPage}
         />
       )}

@@ -4,7 +4,7 @@ import './DebugPanel.css'
 /**
  * DebugPanel - 开发者调试面板（仅在开发模式显示）
  */
-function DebugPanel({ pdfId, currentPage, zoom, stampsByPage }) {
+function DebugPanel({ pdfId, currentPage, zoom, fitScale, finalScale, stampsByPage }) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [position, setPosition] = useState({ x: 12, y: null })
   const [isDragging, setIsDragging] = useState(false)
@@ -165,9 +165,21 @@ function DebugPanel({ pdfId, currentPage, zoom, stampsByPage }) {
               <code className="debug-value">{currentPage}</code>
             </div>
             <div className="debug-item">
-              <span className="debug-label">缩放:</span>
+              <span className="debug-label">用户缩放:</span>
               <code className="debug-value">{(zoom * 100).toFixed(0)}%</code>
             </div>
+            {fitScale !== undefined && (
+              <div className="debug-item">
+                <span className="debug-label">Fit Scale:</span>
+                <code className="debug-value">{fitScale.toFixed(3)}</code>
+              </div>
+            )}
+            {finalScale !== undefined && (
+              <div className="debug-item">
+                <span className="debug-label">最终缩放:</span>
+                <code className="debug-value">{finalScale.toFixed(3)} ({(finalScale * 100).toFixed(0)}%)</code>
+              </div>
+            )}
           </div>
 
           <div className="debug-section">
