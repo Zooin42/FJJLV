@@ -38,6 +38,15 @@
   z-index: 100;
 }
 
+/* Disabled state (during region selection) */
+.stamp-card.disabled {
+  pointer-events: none;
+  opacity: 0.4;
+  cursor: default;
+  transform: none !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+}
+
 /* 卡片头部 */
 .stamp-card-header {
   display: flex;
@@ -148,6 +157,28 @@
    Form 标记特定样式
    ═══════════════════════════════════════════════════════════════════ */
 
+/* ═══════════════════════════════════════════════════════════════════
+   Form 标记特定样式
+   ═══════════════════════════════════════════════════════════════════ */
+
+.form-silhouette-container {
+  width: 160px;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 8px auto;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.form-silhouette-image {
+  display: block;
+  image-rendering: crisp-edges;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: pixelated;
+}
+
 .form-prompt {
   font-size: 13px;
   font-weight: 600;
@@ -189,10 +220,11 @@
   border-width: 3px;
 }
 
-/* Form 类型特殊样式 - 确保有足够宽度显示完整文本 */
+/* Form 类型特殊样式 - 固定宽度以容纳 160px 轮廓 */
 .stamp-type-form {
-  min-width: 220px;  /* Form stamps 需要更多空间 */
-  max-width: 340px;  /* 允许更宽以容纳长提示 */
+  min-width: 180px;   /* 160px 轮廓 + 20px padding */
+  max-width: 180px;   /* 固定宽度，不随内容变化 */
+  width: 180px;       /* 强制固定宽度 */
 }
 
 /* ═══════════════════════════════════════════════════════════════════

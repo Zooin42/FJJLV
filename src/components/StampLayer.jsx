@@ -4,7 +4,7 @@ import './StampLayer.css'
 /**
  * StampLayer - 标记覆盖层，显示当前页的所有标记
  */
-function StampLayer({ stamps, currentPage, stageWidth, stageHeight, onStampPositionChange, onStampUpdate }) {
+function StampLayer({ stamps, currentPage, stageWidth, stageHeight, onStampPositionChange, onStampUpdate, isSelectingRegion = false }) {
   // 获取当前页的标记
   const currentPageStamps = stamps[currentPage] || []
 
@@ -23,6 +23,7 @@ function StampLayer({ stamps, currentPage, stageWidth, stageHeight, onStampPosit
           stageHeight={stageHeight}
           onPositionChange={onStampPositionChange}
           onStampUpdate={onStampUpdate}
+          disabled={isSelectingRegion}
         />
       ))}
     </div>

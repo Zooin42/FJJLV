@@ -28,9 +28,12 @@ src/
     StampLayer.jsx     # Overlay container for current page stamps
     StampItem.jsx      # Draggable stamp with pointer events
     StampToolbar.jsx   # Fixed bottom-right toolbar with 3 stamp type buttons
-    StampPanel.jsx     # Full-screen modal for stamp type panels (placeholder)
+    StampPanel.jsx     # Full-screen modal for stamp type panels (rhythm/form/tactile)
+    RegionSelector.jsx # Form stamp region detection overlay (canvas-based CV)
     OnboardingOverlay.jsx  # First-time user guide overlay
-    DebugPanel.jsx     # Dev-only panel showing state & localStorage (draggable)
+  
+  assets/
+    rhythmStickers.js  # Prebuilt rhythm pattern visuals (steps×repeats combinations)
   
   context/
     PdfContext.jsx     # Global state: currentPdf (pdfId + File object)
@@ -51,6 +54,7 @@ src/
    - Loads stamps + reader state (lastPage, lastZoom) from localStorage
    - Shows OnboardingOverlay on first visit (tracked via localStorage)
    - Displays stamps via StampLayer, allows adding/dragging stamps
+   - Shows DebugPanel in dev mode (import.meta.env.DEV)
    - Shows DebugPanel in dev mode (import.meta.env.DEV)
 
 ### Data Model
@@ -84,13 +88,43 @@ Uses **discriminated union** pattern with JSDoc:
     stickerId: string   // Reference to prebuilt asset
   }
 }
+
+// FormStamp extends base with:
+{
+  type: "form",
+  payload: {
+    promptId: string,           // Template identifier
+    promptText: string,         // Display text (e.g., "What does it look like?")
+    note?: string,              // Optional user note
+    silhouette?: {              // Optional region boundary
+      kind: 'none' | 'auto_placeholder' | 'manual_bbox',
+      bbox?: { x, y, w, h }     // Normalized coords (0-1)
+    }
+  }
+}
+
+// TactileStamp extends base with:
+{
+  type: "tactile",
+  payload: {
+    gestureId: string,          // e.g., "tap", "press", "pinch"
+    gestureEmoji: string,       // e.g., 👆, ✋, 🤏
+    feelId?: string,            // Optional modifier
+    feelEmoji?: string,         // e.g., 🌵, ☁️, 🧱
+    feelLabel?: string          // Short text label
+  }
+}
 ```
 
 **Creating Stamps**:
 - Generic: `createStamp({ pdfId, page, type: 'generic', x, y, payload: {} })`
 - Rhythm: `createRhythmStamp({ pdfId, page, x, y, steps, repeats, stickerId })`
   - Auto-clamps steps to [2,8] and repeats to [2,12]
-  - See [stampStorage.js](src/utils/stampStorage.js) for details
+  - stickerId format: `rhythm_{steps}_{repeats}_{pattern}` (e.g., "rhythm_4_3_straight")
+- Form: `createFormStamp({ pdfId, page, x, y, promptId, promptText, note?, bbox? })`
+  - bbox is Silhouette object with normalized coords
+- Tactile: `createTactileStamp({ pdfId, page, x, y, gestureId, gestureEmoji, feelId?, feelEmoji?, feelLabel? })`
+  - See [stampStorage.js](src/utils/stampStorage.js) for all factory functions
 
 **localStorage Keys**:
 - `ltp_mvp::{pdfId}::stamps` → `Record<number, Stamp[]>` (stamps grouped by page)
@@ -113,10 +147,17 @@ Uses **discriminated union** pattern with JSDoc:
 - Rhythm stamps with valid payload show `stamp-badge` with "steps×repeats"
 - Tooltip dynamically generated based on stamp type and payload
 
-**UI Pattern**: Click toolbar → Opens full-screen StampPanel → Currently placeholders ("coming soon")
-- StampToolbar: Fixed bottom-right, toggles activePanel state
-- StampPanel: Modal overlay with type-specific content (currently just titles)
-- User adds stamp via "＋ 添加标记" button in ReaderPage toolbar (creates generic stamp at x=0.85, y=0.15)
+**UI Pattern**: Click toolbar → Opens full-screen StampPanel → Type-specific interfaces
+- **StampToolbar**: Fixed bottom-right, toggles activePanel state
+- **StampPanel**: Modal overlay with type-specific content:
+  - **Rhythm Panel**: Sticker grid (steps 2-8 × repeats 2-12) from rhythmStickers.js
+  - **Form Panel**: Prompt template selector + "Draw Region" button → triggers RegionSelector
+  - **Tactile Panel**: Gesture selector (6 gestures) + optional feel modifiers (6 feels)
+- **RegionSelector**: Canvas-based computer vision overlay for Form stamps
+  - Scans PDF canvas for high-contrast regions using edge detection
+  - Displays bounding boxes with hover states
+  - Returns normalized bbox coords (x, y, w, h) on selection
+- User can add stamps via toolbar buttons OR quick "＋ 添加标记" (creates generic at x=0.85, y=0.15)
 
 ### State Management Pattern
 

@@ -10,6 +10,7 @@ import StampToolbar from '../components/StampToolbar'
 import StampPanel from '../components/StampPanel'
 import OnboardingOverlay from '../components/OnboardingOverlay'
 import DebugPanel from '../components/DebugPanel'
+import ManualRegionSelector from '../components/ManualRegionSelector'
 import './ReaderPage.css'
 
 // 配置 PDF.js worker
@@ -110,6 +111,11 @@ function ReaderPage() {
   const [stampsByPage, setStampsByPage] = useState({})
   const [activePanel, setActivePanel] = useState('none')
   const [showOnboarding, setShowOnboarding] = useState(false)
+  
+  // Form Path 区域选择状态
+  const [isSelectingRegion, setIsSelectingRegion] = useState(false)
+  const [selectedRegion, setSelectedRegion] = useState(null)
+  const pdfCanvasRef = useRef(null)
 
   // 计算容器驱动的缩放比例
   const fitScale = useMemo(() => {
@@ -152,6 +158,7 @@ function ReaderPage() {
   }
   
   const pdfStageRef = useRef(null)
+  const pdfPageRef = useRef(null)
   const hasLoadedState = useRef(false)
   const hasLoadedStamps = useRef(false)
   
@@ -467,6 +474,50 @@ function ReaderPage() {
     }
   }, [pageDimensions.width, pageDimensions.height, finalScale])
 
+  // 捕获 PDF canvas 元素用于区域扫描
+  useEffect(() => {
+    if (!pdfPageRef.current) return
+    
+    // react-pdf 渲染后，canvas 在 Page 组件内部
+    const canvas = pdfPageRef.current.querySelector('canvas')
+    if (canvas) {
+      pdfCanvasRef.current = canvas
+      
+      if (import.meta.env.DEV) {
+        console.log('[PDF Canvas] Captured:', {
+          width: canvas.width,
+          height: canvas.height
+        })
+      }
+    }
+  }, [pageNumber, finalScale])
+
+  // Form Path 区域选择处理
+  const handleStartRegionSelection = () => {
+    if (import.meta.env.DEV) {
+      console.log('[RegionSelection] Starting...')
+    }
+    setIsSelectingRegion(true)
+    setSelectedRegion(null)
+  }
+
+  const handleRegionSelect = (region) => {
+    if (import.meta.env.DEV) {
+      console.log('[RegionSelection] Region selected:', region)
+    }
+    setSelectedRegion(region)
+    setIsSelectingRegion(false)
+    // Region (with silhouette) is selected, user will continue in Form panel
+  }
+
+  const handleCancelRegionSelection = () => {
+    if (import.meta.env.DEV) {
+      console.log('[RegionSelection] Cancelled')
+    }
+    setIsSelectingRegion(false)
+    setSelectedRegion(null)
+  }
+
   const goToPrevPage = () => {
     setPageNumber(prev => Math.max(1, prev - 1))
   }
@@ -603,23 +654,54 @@ function ReaderPage() {
    * 处理 Form 标记添加
    * 使用相同的智能放置策略
    */
-  const handleAddFormStamp = (promptId, promptText, note) => {
+  const handleAddFormStamp = (promptId, promptText, note, bbox, silhouetteData) => {
     if (!pdfId || !pageNumber) return
 
-    // 智能放置：计算不重叠的位置
-    const currentPageStamps = stampsByPage[pageNumber] || []
+    // 智能放置：靠近选中区域但避免重叠
     let x = 0.15  // 默认左侧
     let y = 0.15  // 默认顶部
 
-    // 如果当前页已有标记，使用偏移策略
-    if (currentPageStamps.length > 0) {
-      const offset = (currentPageStamps.length % 5) * 0.08
-      x = 0.15 + offset
-      y = 0.15 + offset
+    if (bbox && renderedPageSize.width > 0 && renderedPageSize.height > 0) {
+      // 计算选中区域的归一化坐标
+      const regionCenterX = (bbox.x + bbox.w / 2) / renderedPageSize.width
+      const regionCenterY = (bbox.y + bbox.h / 2) / renderedPageSize.height
       
-      // 如果超出边界，重置到另一侧
-      if (x > 0.8) x = 0.15
-      if (y > 0.8) y = 0.15
+      // 放置在区域右侧，偏移以避免重叠
+      x = regionCenterX + (bbox.w / renderedPageSize.width) / 2 + 0.15
+      y = regionCenterY - 0.1  // 略微上移
+      
+      // 确保在边界内
+      x = Math.max(0.05, Math.min(0.75, x))
+      y = Math.max(0.05, Math.min(0.85, y))
+      
+      if (import.meta.env.DEV) {
+        console.log('[FormStamp] Placement near region:', {
+          regionCenter: { x: regionCenterX, y: regionCenterY },
+          stampPosition: { x, y }
+        })
+      }
+    } else {
+      // 无区域时使用偏移策略
+      const currentPageStamps = stampsByPage[pageNumber] || []
+      if (currentPageStamps.length > 0) {
+        const offset = (currentPageStamps.length % 5) * 0.08
+        x = 0.15 + offset
+        y = 0.15 + offset
+        
+        if (x > 0.8) x = 0.15
+        if (y > 0.8) y = 0.15
+      }
+    }
+
+    // 构建 silhouette 对象
+    let silhouette = { kind: 'none' }
+    if (bbox) {
+      silhouette = {
+        kind: silhouetteData ? 'manual_bbox' : 'auto_placeholder',
+        bbox,
+        // 包含轮廓图像数据
+        ...(silhouetteData && { silhouetteImage: silhouetteData })
+      }
     }
 
     const newStamp = createFormStamp({
@@ -630,7 +712,7 @@ function ReaderPage() {
       promptId,
       promptText,
       note,
-      silhouette: { kind: 'none' }
+      silhouette
     })
 
     if (import.meta.env.DEV) {
@@ -640,7 +722,8 @@ function ReaderPage() {
         x: newStamp.x,
         y: newStamp.y,
         type: newStamp.type,
-        payload: newStamp.payload
+        payload: newStamp.payload,
+        hasSilhouetteImage: !!silhouetteData
       })
     }
 
@@ -878,25 +961,39 @@ function ReaderPage() {
                 </div>
               }
             >
-              <Page 
-                pageNumber={pageNumber} 
-                scale={finalScale}
-                onLoadSuccess={handlePageLoadSuccess}
-                loading={
-                  <div className="loading-message">
-                    <div className="spinner-large"></div>
-                  </div>
-                }
-              />
+              <div ref={pdfPageRef}>
+                <Page 
+                  pageNumber={pageNumber} 
+                  scale={finalScale}
+                  onLoadSuccess={handlePageLoadSuccess}
+                  loading={
+                    <div className="loading-message">
+                      <div className="spinner-large"></div>
+                    </div>
+                  }
+                />
+              </div>
             </Document>
-            <StampLayer
+            <StampLayer 
               stamps={stampsByPage}
               currentPage={pageNumber}
               stageWidth={renderedPageSize.width}
               stageHeight={renderedPageSize.height}
               onStampPositionChange={handleStampPositionChange}
               onStampUpdate={handleStampUpdate}
+              isSelectingRegion={isSelectingRegion}
             />
+            
+            {/* Manual Region Selector for Form Path */}
+            {isSelectingRegion && pdfCanvasRef.current && (
+              <ManualRegionSelector
+                pdfCanvas={pdfCanvasRef.current}
+                pageWidth={renderedPageSize.width}
+                pageHeight={renderedPageSize.height}
+                onRegionSelect={handleRegionSelect}
+                onCancel={handleCancelRegionSelection}
+              />
+            )}
           </div>
         </div>
       </main>
@@ -914,6 +1011,9 @@ function ReaderPage() {
         onAddTactileStamp={handleAddTactileStamp}
         currentPage={pageNumber}
         pdfId={pdfId}
+        onStartRegionSelection={handleStartRegionSelection}
+        selectedRegion={selectedRegion}
+        isSelectingRegion={isSelectingRegion}
       />
 
       {showOnboarding && (

@@ -1,17 +1,15 @@
 import { useState, useEffect } from 'react'
 import './StampPanel.css'
 import { getRhythmStickers } from '../assets/rhythmStickers'
+import { normalizeSilhouetteToStamp } from '../utils/silhouetteNormalizer'
 
 /**
- * Form 提示模板
+ * Form 提示模板（随机选择）
  */
 const FORM_PROMPTS = [
-  { promptId: 'form_looks_like', promptText: 'What does it look like?' },
-  { promptId: 'form_become_later', promptText: 'What could this become later?' },
-  { promptId: 'form_part_of', promptText: 'Which part of the final model might this be?' },
-  { promptId: 'form_name', promptText: 'If this had a name, what would it be?' },
-  { promptId: 'form_reminds', promptText: 'What object does this remind you of?' },
-  { promptId: 'form_clue', promptText: 'What clue do you notice here?' }
+  { promptId: 'form_looks_like', promptText: 'This looks like…' },
+  { promptId: 'form_reminds', promptText: 'What does this remind you of?' },
+  { promptId: 'form_feels_like', promptText: 'It feels like…' }
 ]
 
 /**
@@ -42,7 +40,18 @@ const TACTILE_FEELS = [
  * StampPanel - 标记面板
  * 根据 activePanel 显示不同的内容
  */
-function StampPanel({ activePanel, onClose, onAddRhythmStamp, onAddFormStamp, onAddTactileStamp, currentPage, pdfId }) {
+function StampPanel({ 
+  activePanel, 
+  onClose, 
+  onAddRhythmStamp, 
+  onAddFormStamp, 
+  onAddTactileStamp, 
+  currentPage, 
+  pdfId,
+  onStartRegionSelection,
+  selectedRegion,
+  isSelectingRegion
+}) {
   // Rhythm Panel 状态
   const [steps, setSteps] = useState(2)
   const [repeats, setRepeats] = useState(2)
@@ -68,13 +77,23 @@ function StampPanel({ activePanel, onClose, onAddRhythmStamp, onAddFormStamp, on
     }
   }, [activePanel, pdfId])
 
-  // Form Panel 初始化：自动选择第一个提示
+  // Form Panel 初始化：当选择区域时随机选择提示
   useEffect(() => {
     if (activePanel === 'form') {
-      setSelectedPrompt(FORM_PROMPTS[0].promptId)
+      // 如果有选中的区域，自动随机选择提示
+      if (selectedRegion) {
+        const randomIndex = Math.floor(Math.random() * FORM_PROMPTS.length)
+        setSelectedPrompt(FORM_PROMPTS[randomIndex].promptId)
+        
+        if (import.meta.env.DEV) {
+          console.log('[FormPanel] Auto-selected random prompt:', FORM_PROMPTS[randomIndex].promptText)
+        }
+      } else {
+        setSelectedPrompt(FORM_PROMPTS[0].promptId)
+      }
       setFormNote('')
     }
-  }, [activePanel])
+  }, [activePanel, selectedRegion])
 
   // Tactile Panel 初始化：自动选择第一个手势，清空 feel
   useEffect(() => {
@@ -98,21 +117,72 @@ function StampPanel({ activePanel, onClose, onAddRhythmStamp, onAddFormStamp, on
   }
 
   // Form Panel 放置处理
-  const handlePlaceFormStamp = () => {
+  const handlePlaceFormStamp = async () => {
     if (!selectedPrompt) return
     
     const prompt = FORM_PROMPTS.find(p => p.promptId === selectedPrompt)
     if (!prompt) return
 
+    // 构建 bbox 和轮廓数据
+    let bbox = null
+    let silhouetteData = null
+    
+    if (selectedRegion) {
+      bbox = {
+        x: selectedRegion.region.x,
+        y: selectedRegion.region.y,
+        w: selectedRegion.region.width,
+        h: selectedRegion.region.height
+      }
+      
+      // 标准化轮廓到固定大小
+      if (selectedRegion.silhouette) {
+        try {
+          const normalizedDataUrl = await normalizeSilhouetteToStamp(
+            selectedRegion.silhouette.dataUrl,
+            selectedRegion.silhouette.width,
+            selectedRegion.silhouette.height,
+            {
+              stampWidth: 160,
+              stampHeight: 160,
+              backgroundColor: 'rgba(59, 130, 246, 0.15)', // 蓝色半透明
+              silhouetteColor: 'rgba(30, 41, 59, 0.8)',    // 深灰
+              padding: 10
+            }
+          )
+          
+          silhouetteData = {
+            dataUrl: selectedRegion.silhouette.dataUrl,      // 原始轮廓
+            width: selectedRegion.silhouette.width,
+            height: selectedRegion.silhouette.height,
+            normalizedDataUrl,                               // 标准化轮廓
+            normalizedWidth: 160,
+            normalizedHeight: 160
+          }
+        } catch (error) {
+          console.error('[FormPanel] Silhouette normalization failed:', error)
+          // 回退：使用原始轮廓
+          silhouetteData = {
+            dataUrl: selectedRegion.silhouette.dataUrl,
+            width: selectedRegion.silhouette.width,
+            height: selectedRegion.silhouette.height
+          }
+        }
+      }
+    }
+
     if (import.meta.env.DEV) {
       console.log('[FormPanel] Placing form stamp:', {
         promptId: selectedPrompt,
         promptText: prompt.promptText,
-        note: formNote || '(no note)'
+        note: formNote || '(no note)',
+        hasRegion: !!bbox,
+        hasSilhouette: !!silhouetteData,
+        hasNormalizedSilhouette: !!(silhouetteData?.normalizedDataUrl)
       })
     }
 
-    onAddFormStamp?.(selectedPrompt, prompt.promptText, formNote || undefined)
+    onAddFormStamp?.(selectedPrompt, prompt.promptText, formNote || undefined, bbox, silhouetteData)
     onClose()
   }
 
@@ -327,53 +397,121 @@ function StampPanel({ activePanel, onClose, onAddRhythmStamp, onAddFormStamp, on
   // 渲染 Form Panel
   const renderFormPanel = () => (
     <div className="form-panel">
-      {/* 提示模板列表 */}
-      <div className="form-section">
-        <h4 className="section-title">选择提示问题</h4>
-        <div className="prompt-list">
-          {FORM_PROMPTS.map((prompt) => (
-            <button
-              key={prompt.promptId}
-              className={`prompt-card ${selectedPrompt === prompt.promptId ? 'selected' : ''}`}
-              onClick={() => setSelectedPrompt(prompt.promptId)}
-            >
-              <span className="prompt-radio">
-                {selectedPrompt === prompt.promptId ? '●' : '○'}
-              </span>
-              <span className="prompt-text">{prompt.promptText}</span>
-            </button>
-          ))}
+      {/* 如果正在选择区域，显示提示信息 */}
+      {isSelectingRegion && (
+        <div className="region-selection-info">
+          <div className="info-content">
+            <span className="info-icon">�️</span>
+            <span className="info-text">拖动鼠标绘制矩形区域...</span>
+          </div>
         </div>
-      </div>
+      )}
+      
+      {/* 如果已选择区域，显示区域信息和轮廓预览 */}
+      {selectedRegion && !isSelectingRegion && (
+        <div className="region-info">
+          <div className="info-header">
+            <span className="info-icon">✅</span>
+            <span className="info-title">已选择区域</span>
+          </div>
+          <div className="region-details">
+            <span className="detail-label">位置:</span>
+            <span className="detail-value">
+              ({Math.round(selectedRegion.region.x)}, {Math.round(selectedRegion.region.y)})
+            </span>
+            <span className="detail-label">尺寸:</span>
+            <span className="detail-value">
+              {Math.round(selectedRegion.region.width)} × {Math.round(selectedRegion.region.height)}
+            </span>
+          </div>
+          
+          {/* 轮廓预览 */}
+          {selectedRegion.silhouette && (
+            <div className="silhouette-preview">
+              <div className="preview-label">形状轮廓:</div>
+              <div className="preview-image-container">
+                <img 
+                  src={selectedRegion.silhouette.dataUrl} 
+                  alt="区域轮廓"
+                  className="preview-image"
+                  style={{
+                    width: `${selectedRegion.silhouette.width}px`,
+                    height: `${selectedRegion.silhouette.height}px`
+                  }}
+                />
+              </div>
+              <div className="preview-hint">✨ 此轮廓将包含在标记中</div>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* 扫描按钮（如果还未选择区域） */}
+      {!selectedRegion && !isSelectingRegion && (
+        <div className="form-section">
+          <h4 className="section-title">步骤 1: 选择图形区域</h4>
+          <button
+            className="btn-scan"
+            onClick={onStartRegionSelection}
+            title="手动绘制矩形框选择区域"
+          >
+            🖱️ 绘制区域
+          </button>
+          <p className="section-hint">拖动鼠标绘制矩形框选择图形区域</p>
+        </div>
+      )}
 
-      {/* 笔记输入 */}
-      <div className="form-section">
-        <label htmlFor="form-note-input" className="section-title">
-          笔记（可选）
-        </label>
-        <input
-          id="form-note-input"
-          type="text"
-          className="note-input"
-          placeholder="添加你的笔记..."
-          value={formNote}
-          onChange={(e) => setFormNote(e.target.value.slice(0, 40))}
-          maxLength={40}
-        />
-        <div className="char-count">{formNote.length}/40</div>
-      </div>
+      {/* 提示模板列表（只有选择区域后才显示） */}
+      {selectedRegion && !isSelectingRegion && (
+        <>
+          <div className="form-section">
+            <h4 className="section-title">步骤 2: 选择提示问题</h4>
+            <div className="prompt-list">
+              {FORM_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt.promptId}
+                  className={`prompt-card ${selectedPrompt === prompt.promptId ? 'selected' : ''}`}
+                  onClick={() => setSelectedPrompt(prompt.promptId)}
+                >
+                  <span className="prompt-radio">
+                    {selectedPrompt === prompt.promptId ? '●' : '○'}
+                  </span>
+                  <span className="prompt-text">{prompt.promptText}</span>
+                </button>
+              ))}
+            </div>
+          </div>
 
-      {/* 放置按钮 */}
-      <div className="panel-actions">
-        <button
-          className="btn-primary"
-          onClick={handlePlaceFormStamp}
-          disabled={!selectedPrompt}
-          title={selectedPrompt ? '放置形态标记到当前页面' : '请先选择提示问题'}
-        >
-          放置形态标记
-        </button>
-      </div>
+          {/* 笔记输入 */}
+          <div className="form-section">
+            <label htmlFor="form-note-input" className="section-title">
+              步骤 3: 笔记（可选）
+            </label>
+            <input
+              id="form-note-input"
+              type="text"
+              className="note-input"
+              placeholder="添加你的笔记..."
+              value={formNote}
+              onChange={(e) => setFormNote(e.target.value.slice(0, 40))}
+              maxLength={40}
+            />
+            <div className="char-count">{formNote.length}/40</div>
+          </div>
+
+          {/* 放置按钮 */}
+          <div className="panel-actions">
+            <button
+              className="btn-primary"
+              onClick={handlePlaceFormStamp}
+              disabled={!selectedPrompt}
+              title={selectedPrompt ? '放置形态标记到当前页面' : '请先选择提示问题'}
+            >
+              放置形态标记
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 

@@ -5,7 +5,7 @@ import { getStickerById } from '../assets/rhythmStickers'
 /**
  * StampItem - 单个标记的可视化组件（卡片式，完整信息展示）
  */
-function StampItem({ stamp, stageWidth, stageHeight, onPositionChange, onStampUpdate }) {
+function StampItem({ stamp, stageWidth, stageHeight, onPositionChange, onStampUpdate, disabled = false }) {
   const [isDragging, setIsDragging] = useState(false)
   const dragStartRef = useRef({ x: 0, y: 0, stampX: 0, stampY: 0 })
   
@@ -57,6 +57,10 @@ function StampItem({ stamp, stageWidth, stageHeight, onPositionChange, onStampUp
         }
       }
       case 'form': {
+        const hasSilhouette = !!(
+          stamp.payload?.silhouette?.silhouetteImage?.normalizedDataUrl
+        )
+        
         return { 
           typeLabel: 'Form',
           color: '#3b82f6',
@@ -64,6 +68,10 @@ function StampItem({ stamp, stageWidth, stageHeight, onPositionChange, onStampUp
           icon: '□',
           promptText: stamp.payload?.promptText || '提示问题',
           note: stamp.payload?.note,
+          silhouetteDataUrl: stamp.payload?.silhouette?.silhouetteImage?.normalizedDataUrl,
+          silhouetteWidth: 160,  // 固定尺寸
+          silhouetteHeight: 160,  // 固定尺寸
+          hasSilhouette,
           hasDetails: !!stamp.payload?.promptText
         }
       }
@@ -110,6 +118,8 @@ function StampItem({ stamp, stageWidth, stageHeight, onPositionChange, onStampUp
   const typeInfo = getTypeDisplay(stamp)
 
   const handlePointerDown = (e) => {
+    if (disabled) return // 禁用拖拽（如选择区域模式）
+    
     e.preventDefault()
     e.stopPropagation()
     
@@ -191,11 +201,21 @@ function StampItem({ stamp, stageWidth, stageHeight, onPositionChange, onStampUp
 
   return (
     <div
-      className={`stamp-card ${isDragging ? 'dragging' : ''} ${isCollapsed ? 'collapsed' : 'expanded'} stamp-type-${stamp.type}`}
+      className={`stamp-card ${isDragging ? 'dragging' : ''} ${isCollapsed ? 'collapsed' : 'expanded'} ${disabled ? 'disabled' : ''} stamp-type-${stamp.type}`}
       style={{
         left: `${left}px`,
         top: `${top}px`,
-        borderColor: typeInfo.borderColor
+        borderColor: typeInfo.borderColor,
+        ...(stamp.type === 'form' && typeInfo.hasSilhouette && {
+          width: '180px',  // 固定宽度以容纳 160px 轮廓
+          minWidth: '180px',
+          maxWidth: '180px'
+        }),
+        ...(disabled && {
+          pointerEvents: 'none',
+          opacity: 0.4,
+          cursor: 'default'
+        })
       }}
       onPointerDown={handlePointerDown}
     >
@@ -244,6 +264,20 @@ function StampItem({ stamp, stageWidth, stageHeight, onPositionChange, onStampUp
               </>
             ) : stamp.type === 'form' && typeInfo.hasDetails ? (
               <>
+                {/* 显示标准化轮廓（如果存在） */}
+                {typeInfo.hasSilhouette && typeInfo.silhouetteDataUrl && (
+                  <div className="form-silhouette-container">
+                    <img 
+                      src={typeInfo.silhouetteDataUrl}
+                      alt="Form silhouette"
+                      className="form-silhouette-image"
+                      style={{
+                        width: `${typeInfo.silhouetteWidth}px`,
+                        height: `${typeInfo.silhouetteHeight}px`
+                      }}
+                    />
+                  </div>
+                )}
                 <div className="form-prompt">{typeInfo.promptText}</div>
                 {typeInfo.note && (
                   <div className="form-note">
