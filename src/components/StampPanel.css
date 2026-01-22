@@ -1,0 +1,594 @@
+.stamp-panel-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  backdrop-filter: blur(2px);
+}
+
+.stamp-panel {
+  background-color: #1e293b;
+  border: 2px solid #334155;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 2px solid #334155;
+  background-color: #0f172a;
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.panel-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.panel-title h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.panel-close {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: color 0.2s ease;
+}
+
+.panel-close:hover {
+  color: #e2e8f0;
+}
+
+.panel-content {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.placeholder-text {
+  color: #94a3b8;
+  font-size: 16px;
+  text-align: center;
+  font-style: italic;
+}
+
+/* ========================================
+   Rhythm Panel Styles
+   ======================================== */
+
+.rhythm-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Rhythm 首次使用提示 */
+.rhythm-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  gap: 12px;
+}
+
+.hint-text {
+  color: #fbbf24;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  flex: 1;
+}
+
+.hint-dismiss {
+  background: none;
+  border: none;
+  color: #fbbf24;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.hint-dismiss:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.control-label {
+  color: #e2e8f0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.control-hint {
+  color: #64748b;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+/* Stepper Controls */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: #0f172a;
+  border: 2px solid #334155;
+  border-radius: 8px;
+  padding: 8px 12px;
+  width: fit-content;
+}
+
+.stepper-btn {
+  background-color: #1e293b;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 20px;
+  font-weight: bold;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.stepper-btn:hover:not(:disabled) {
+  background-color: #334155;
+  border-color: #64748b;
+}
+
+.stepper-btn:active:not(:disabled) {
+  background-color: #475569;
+}
+
+.stepper-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.stepper-value {
+  color: #f59e0b;
+  font-size: 20px;
+  font-weight: bold;
+  min-width: 32px;
+  text-align: center;
+}
+
+/* Sticker Grid */
+.sticker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.sticker-card {
+  background-color: #0f172a;
+  border: 2px solid #334155;
+  border-radius: 8px;
+  padding: 16px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.sticker-card:hover {
+  border-color: #f59e0b;
+  background-color: #1e293b;
+}
+
+.sticker-card.selected {
+  border-color: #fbbf24;
+  border-width: 3px;
+  background-color: #1e293b;
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.3);
+}
+
+.sticker-icon {
+  font-size: 32px;
+  color: #f59e0b;
+  line-height: 1;
+}
+
+.sticker-visual {
+  font-size: 14px;
+  color: #f59e0b;
+  line-height: 1.4;
+  font-family: 'Monaco', 'Menlo', monospace;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.sticker-label {
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.sticker-meta {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  background-color: #1e293b;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #475569;
+}
+
+.sticker-card.selected .sticker-meta {
+  color: #fbbf24;
+  border-color: #fbbf24;
+  background-color: rgba(251, 191, 36, 0.1);
+}
+
+/* Panel Actions */
+.panel-actions {
+  display: flex;
+  justify-content: center;
+  padding-top: 8px;
+  border-top: 2px solid #334155;
+}
+
+.btn-primary {
+  background-color: #f59e0b;
+  color: #0f172a;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  max-width: 300px;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #fbbf24;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Form Panel 样式
+   ═══════════════════════════════════════════════════════════════════ */
+
+.form-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #cbd5e1;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+/* 提示列表 */
+.prompt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* 滚动条样式 */
+.prompt-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.prompt-list::-webkit-scrollbar-track {
+  background: rgba(51, 65, 85, 0.3);
+  border-radius: 3px;
+}
+
+.prompt-list::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.5);
+  border-radius: 3px;
+}
+
+.prompt-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.7);
+}
+
+/* 提示卡片 */
+.prompt-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(51, 65, 85, 0.4);
+  border: 1px solid rgba(71, 85, 105, 0.5);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.prompt-card:hover {
+  background: rgba(51, 65, 85, 0.6);
+  border-color: rgba(96, 165, 250, 0.5);
+}
+
+.prompt-card.selected {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3);
+}
+
+.prompt-radio {
+  font-size: 14px;
+  color: #94a3b8;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+
+.prompt-card.selected .prompt-radio {
+  color: #60a5fa;
+}
+
+.prompt-text {
+  font-size: 13px;
+  color: #e2e8f0;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.prompt-card.selected .prompt-text {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+/* 笔记输入 */
+.note-input {
+  width: 100%;
+  padding: 8px 10px;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(71, 85, 105, 0.5);
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-size: 13px;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.note-input::placeholder {
+  color: #64748b;
+}
+
+.note-input:focus {
+  outline: none;
+  border-color: #60a5fa;
+  background: rgba(30, 41, 59, 0.8);
+  box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.3);
+}
+
+.char-count {
+  font-size: 11px;
+  color: #64748b;
+  text-align: right;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Tactile Panel 样式
+   ═══════════════════════════════════════════════════════════════════ */
+
+.tactile-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tactile-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* 手势网格 */
+.gesture-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+/* 手势卡片 */
+.gesture-card {
+  background: rgba(51, 65, 85, 0.4);
+  border: 2px solid rgba(71, 85, 105, 0.5);
+  border-radius: 8px;
+  padding: 16px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.gesture-card:hover {
+  background: rgba(51, 65, 85, 0.6);
+  border-color: rgba(167, 139, 250, 0.5);
+  transform: translateY(-2px);
+}
+
+.gesture-card.selected {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.3);
+}
+
+.gesture-card .gesture-emoji {
+  font-size: 40px;
+  line-height: 1;
+}
+
+.gesture-card .gesture-label {
+  font-size: 12px;
+  color: #cbd5e1;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.gesture-card.selected .gesture-label {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Feel 网格 */
+.feel-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+/* Feel 卡片 */
+.feel-card {
+  background: rgba(51, 65, 85, 0.4);
+  border: 2px solid rgba(71, 85, 105, 0.5);
+  border-radius: 8px;
+  padding: 16px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.feel-card:hover {
+  background: rgba(51, 65, 85, 0.6);
+  border-color: rgba(167, 139, 250, 0.5);
+  transform: translateY(-2px);
+}
+
+.feel-card.selected {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.3);
+}
+
+.feel-card .feel-emoji {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.feel-card .feel-label {
+  font-size: 12px;
+  color: #cbd5e1;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.feel-card.selected .feel-label {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Clear feel button */
+.section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.clear-feel-btn {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 12px;
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.clear-feel-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+}

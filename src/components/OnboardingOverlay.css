@@ -1,0 +1,101 @@
+.onboarding-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.onboarding-card {
+  background-color: #1e293b;
+  border: 2px solid #334155;
+  border-radius: 16px;
+  padding: 40px 48px;
+  max-width: 560px;
+  width: 90%;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+  animation: slideUp 0.4s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.onboarding-content {
+  margin-bottom: 32px;
+}
+
+.onboarding-line {
+  font-size: 18px;
+  line-height: 1.8;
+  color: #e2e8f0;
+  margin: 0 0 16px 0;
+  text-align: center;
+}
+
+.onboarding-line:last-child {
+  margin-bottom: 0;
+}
+
+.onboarding-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+.onboarding-button {
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 500;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.onboarding-button.skip {
+  background-color: transparent;
+  border-color: #475569;
+  color: #94a3b8;
+}
+
+.onboarding-button.skip:hover {
+  background-color: #334155;
+  border-color: #64748b;
+  color: #cbd5e1;
+}
+
+.onboarding-button.primary {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+.onboarding-button.primary:hover {
+  background-color: #2563eb;
+  border-color: #2563eb;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}

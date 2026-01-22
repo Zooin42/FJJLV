@@ -1,0 +1,376 @@
+/* ═══════════════════════════════════════════════════════════════════
+   StampItem - 卡片式标记组件样式
+   ═══════════════════════════════════════════════════════════════════ */
+
+.stamp-card {
+  position: absolute;
+  min-width: 200px;  /* 增加最小宽度，确保 Form stamps 完全可读 */
+  width: auto;
+  max-width: 320px;  /* 添加最大宽度，避免过宽 */
+  min-height: auto;
+  background-color: rgba(30, 41, 59, 0.90); /* 半透明背景 */
+  border: 2px solid;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  z-index: 10;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  backdrop-filter: blur(4px); /* 毛玻璃效果 */
+}
+
+.stamp-card:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+  background-color: rgba(30, 41, 59, 0.95); /* 悬停时更不透明 */
+  z-index: 20;
+}
+
+.stamp-card:active,
+.stamp-card.dragging {
+  cursor: grabbing;
+  transform: scale(1.08);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+  z-index: 100;
+}
+
+/* 卡片头部 */
+.stamp-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+  opacity: 1; /* 头部完全不透明 */
+  position: relative;
+}
+
+.stamp-type-icon {
+  font-size: 14px;
+  color: white;
+  line-height: 1;
+  opacity: 1; /* 文字完全不透明 */
+}
+
+.stamp-type-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 1; /* 文字完全不透明 */
+  flex: 1;
+}
+
+/* 头部切换按钮 */
+.header-toggle {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 2px 4px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+  pointer-events: auto;
+  line-height: 1;
+}
+
+.header-toggle:hover {
+  opacity: 1;
+}
+
+/* 卡片主体 */
+.stamp-card-body {
+  padding: 12px;  /* 增加 padding 到 12px 提高可读性 */
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+  opacity: 1; /* 内容完全不透明 */
+}
+
+/* 元数据行 */
+.stamp-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #cbd5e1;
+  font-weight: 500;
+}
+
+.meta-item {
+  white-space: nowrap;
+}
+
+.meta-divider {
+  color: #64748b;
+  font-size: 10px;
+}
+
+/* 贴纸信息区域 */
+.stamp-sticker-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sticker-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fbbf24;
+  line-height: 1.3;
+}
+
+.sticker-visual {
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 11px;
+  color: #f59e0b;
+  line-height: 1.4;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  max-width: 160px;
+}
+
+/* 通用信息（非 Rhythm 类型）*/
+.stamp-generic-info {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Form 标记特定样式
+   ═══════════════════════════════════════════════════════════════════ */
+
+.form-prompt {
+  font-size: 13px;
+  font-weight: 600;
+  color: #60a5fa;
+  line-height: 1.5;  /* 增加行高提高可读性 */
+  margin-bottom: 6px;
+  word-wrap: break-word;  /* 支持长文本换行 */
+  white-space: normal;  /* 允许正常换行 */
+  overflow-wrap: break-word;  /* 长单词也能换行 */
+}
+
+.form-note {
+  display: flex;
+  flex-direction: column;  /* 改为垂直布局，更易读 */
+  gap: 2px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.note-label {
+  color: #94a3b8;
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.note-content {
+  color: #cbd5e1;
+  font-size: 12px;  /* 稍大一点，更易读 */
+  line-height: 1.5;
+  word-wrap: break-word;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/* Rhythm 类型特殊边框 */
+.stamp-type-rhythm {
+  border-width: 3px;
+}
+
+/* Form 类型特殊样式 - 确保有足够宽度显示完整文本 */
+.stamp-type-form {
+  min-width: 220px;  /* Form stamps 需要更多空间 */
+  max-width: 340px;  /* 允许更宽以容纳长提示 */
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Tactile 标记特定样式
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Tactile 类型特殊样式 - 确保有足够空间显示 emoji */
+.stamp-type-tactile {
+  min-width: 200px;
+  max-width: 280px;
+}
+
+/* Tactile 手势显示区域 */
+.tactile-gesture-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 0;
+}
+
+.gesture-emoji-large {
+  font-size: 48px;  /* 增大到 48px 更清晰 */
+  line-height: 1;
+}
+
+.tactile-plus {
+  font-size: 20px;
+  color: #a78bfa;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.feel-emoji-large {
+  font-size: 42px;  /* 略小于 gesture emoji */
+  line-height: 1;
+}
+
+/* Tactile 标签区域 */
+.tactile-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.gesture-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #c4b5fd;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.feel-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: #a78bfa;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* 其他类型边框颜色会通过内联样式设置 */
+
+/* ═══════════════════════════════════════════════════════════════════
+   折叠视图：紧凑芯片
+   ═══════════════════════════════════════════════════════════════════ */
+
+.stamp-card.collapsed {
+  min-width: 64px;
+  width: 64px;
+  min-height: 40px;
+  height: 40px;
+  padding: 0;
+}
+
+.stamp-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  pointer-events: none;
+  width: 100%;
+  height: 100%;
+}
+
+.chip-icon {
+  font-size: 16px;
+  color: white;
+  line-height: 1;
+  opacity: 1;
+}
+
+.chip-label {
+  display: none; /* 隐藏标签，只显示图标 */
+}
+
+.chip-toggle {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 2px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+  pointer-events: auto;
+  line-height: 1;
+  margin-left: auto;
+}
+
+.chip-toggle:hover {
+  opacity: 1;
+}
+
+/* 折叠时调整悬停效果 */
+.stamp-card.collapsed:hover {
+  transform: scale(1.1);
+}
+
+/* ══════════════════════════════════════════
+   折叠视图：紧凑芯片
+   ══════════════════════════════════════════ */
+
+.stamp-card.collapsed {
+  min-width: 64px;
+  width: 64px;
+  min-height: 40px;
+  height: 40px;
+  padding: 0;
+}
+
+.stamp-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px;
+  pointer-events: none;
+  width: 100%;
+  height: 100%;
+}
+
+.chip-icon {
+  font-size: 16px;
+  color: white;
+  line-height: 1;
+  opacity: 1;
+}
+
+.chip-label {
+  display: none; /* 隐藏标签，只显示图标 */
+}
+
+.chip-toggle {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 2px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+  pointer-events: auto;
+  line-height: 1;
+  margin-left: auto;
+}
+
+.chip-toggle:hover {
+  opacity: 1;
+}
+
+/* 折叠时调整悬停效果 */
+.stamp-card.collapsed:hover {
+  transform: scale(1.1);
+}
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  line-height: 1;
+}
