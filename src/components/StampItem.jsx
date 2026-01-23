@@ -1,39 +1,33 @@
 import { useRef, useState } from 'react'
 import './StampItem.css'
+import CollapsedStampChip from './CollapsedStampChip'
+import './CollapsedStampChip.css'
 import { getStickerById } from '../assets/rhythmStickers'
 
 /**
  * StampItem - 单个标记的可视化组件（卡片式，完整信息展示）
  */
-function StampItem({ stamp, stageWidth, stageHeight, onPositionChange, onStampUpdate, onDelete, disabled = false }) {
+function StampItem({ stamp, stageWidth, stageHeight, onPositionChange, onDelete, disabled = false }) {
   const [isDragging, setIsDragging] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
   const dragStartRef = useRef({ x: 0, y: 0, stampX: 0, stampY: 0 })
   
-  // 从 payload 读取折叠状态，默认展开
-  const isCollapsed = stamp.payload?.uiCollapsed === true
+  // Stamps are collapsed by default, expand on hover
+  const isCollapsed = !isHovered
   
   const left = stamp.x * stageWidth
   const top = stamp.y * stageHeight
 
-  // 切换折叠/展开状态
-  const handleToggleCollapse = (e) => {
-    e.stopPropagation() // 防止触发拖动
-    
-    const newCollapsed = !isCollapsed
-    
-    if (import.meta.env.DEV) {
-      console.log(`[Toggle Collapse] ${stamp.id}: ${isCollapsed} → ${newCollapsed}`)
+  // Mouse enter - expand stamp
+  const handleMouseEnter = () => {
+    if (!disabled) {
+      setIsHovered(true)
     }
-    
-    // 更新 payload
-    if (onStampUpdate) {
-      onStampUpdate(stamp.id, {
-        payload: {
-          ...stamp.payload,
-          uiCollapsed: newCollapsed
-        }
-      })
-    }
+  }
+
+  // Mouse leave - collapse stamp
+  const handleMouseLeave = () => {
+    setIsHovered(false)
   }
 
   // 删除标记
@@ -65,7 +59,7 @@ function StampItem({ stamp, stageWidth, stageHeight, onPositionChange, onStampUp
           typeLabel: 'Rhythm',
           color: '#f59e0b',
           borderColor: '#fbbf24',
-          icon: '♪',
+          icon: '🎵',
           steps: stamp.payload?.steps,
           repeats: stamp.payload?.repeats,
           stickerLabel: sticker?.label || '未知样式',
@@ -81,7 +75,7 @@ function StampItem({ stamp, stageWidth, stageHeight, onPositionChange, onStampUp
           typeLabel: 'Form',
           color: '#3b82f6',
           borderColor: '#60a5fa',
-          icon: '□',
+          icon: '🧱',
           promptText: stamp.payload?.promptText || '提示问题',
           note: stamp.payload?.note,
           silhouetteDataUrl: stamp.payload?.silhouette?.silhouetteImage?.normalizedDataUrl,
@@ -111,7 +105,7 @@ function StampItem({ stamp, stageWidth, stageHeight, onPositionChange, onStampUp
           typeLabel: 'Touch',  // 使用 "Touch" 作为标题
           color: '#8b5cf6',
           borderColor: '#a78bfa',
-          icon: '✋',
+          icon: '👋',
           gestureEmoji: gesture,
           gestureLabel: gestureLabel,  // 单独的 gesture 标签
           feelEmoji: feel,
@@ -222,8 +216,8 @@ function StampItem({ stamp, stageWidth, stageHeight, onPositionChange, onStampUp
         left: `${left}px`,
         top: `${top}px`,
         borderColor: typeInfo.borderColor,
-        ...(stamp.type === 'form' && typeInfo.hasSilhouette && {
-          width: '180px',  // 固定宽度以容纳 160px 轮廓
+        ...(!isCollapsed && stamp.type === 'form' && typeInfo.hasSilhouette && {
+          width: '180px',  // 固定宽度以容纳 160px 轮廓（仅展开时）
           minWidth: '180px',
           maxWidth: '180px'
         }),
@@ -234,20 +228,15 @@ function StampItem({ stamp, stageWidth, stageHeight, onPositionChange, onStampUp
         })
       }}
       onPointerDown={handlePointerDown}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {isCollapsed ? (
-        // 折叠视图：紧凑芯片
-        <div className="stamp-chip">
-          <span className="chip-icon">{typeInfo.icon}</span>
-          <span className="chip-label">{typeInfo.typeLabel}</span>
-          <button 
-            className="chip-toggle"
-            onClick={handleToggleCollapse}
-            title="展开"
-          >
-            ▼
-          </button>
-        </div>
+        // 折叠视图：统一的紧凑芯片
+        <CollapsedStampChip 
+          icon={typeInfo.icon}
+          typeColor={typeInfo.color}
+        />
       ) : (
         // 展开视图：完整卡片
         <>
@@ -261,13 +250,6 @@ function StampItem({ stamp, stageWidth, stageHeight, onPositionChange, onStampUp
               title="删除标记"
             >
               ×
-            </button>
-            <button 
-              className="header-toggle"
-              onClick={handleToggleCollapse}
-              title="折叠"
-            >
-              ▲
             </button>
           </div>
 

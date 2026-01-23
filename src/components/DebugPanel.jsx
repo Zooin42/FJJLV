@@ -4,7 +4,7 @@ import './DebugPanel.css'
 /**
  * DebugPanel - 开发者调试面板（仅在开发模式显示）
  */
-function DebugPanel({ pdfId, currentPage, zoom, fitScale, finalScale, stampsByPage }) {
+function DebugPanel({ pdfId, currentPage, numPages, zoom, fitScale, finalScale, stampsByPage, containerSize, renderedPageSize, onAddStamp }) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [position, setPosition] = useState({ x: 12, y: null })
   const [isDragging, setIsDragging] = useState(false)
@@ -77,6 +77,14 @@ function DebugPanel({ pdfId, currentPage, zoom, fitScale, finalScale, stampsByPa
       }
     } catch (e) {
       setReaderStateInspection(`Error: ${e.message}`)
+    }
+  }
+
+  const handleResetOnboarding = () => {
+    if (window.confirm('重置引导标记？下次打开此 PDF 将再次显示引导。')) {
+      localStorage.removeItem(onboardingKey)
+      console.log('[Debug] Onboarding flag reset for:', pdfId)
+      alert('引导标记已重置。刷新页面以查看效果。')
     }
   }
 
@@ -154,18 +162,19 @@ function DebugPanel({ pdfId, currentPage, zoom, fitScale, finalScale, stampsByPa
       
       <div className="debug-content-wrapper">
         <div className="debug-content">
+          {/* Reader Diagnostics Section */}
           <div className="debug-section">
-            <h4>状态信息</h4>
+            <h4>📄 Reader Diagnostics</h4>
             <div className="debug-item">
               <span className="debug-label">PDF ID:</span>
-              <code className="debug-value">{pdfId}</code>
+              <code className="debug-value debug-value-small">{pdfId}</code>
             </div>
             <div className="debug-item">
-              <span className="debug-label">当前页:</span>
-              <code className="debug-value">{currentPage}</code>
+              <span className="debug-label">Page:</span>
+              <code className="debug-value">{currentPage}{numPages ? ` / ${numPages}` : ''}</code>
             </div>
             <div className="debug-item">
-              <span className="debug-label">用户缩放:</span>
+              <span className="debug-label">User Zoom:</span>
               <code className="debug-value">{(zoom * 100).toFixed(0)}%</code>
             </div>
             {fitScale !== undefined && (
@@ -176,53 +185,90 @@ function DebugPanel({ pdfId, currentPage, zoom, fitScale, finalScale, stampsByPa
             )}
             {finalScale !== undefined && (
               <div className="debug-item">
-                <span className="debug-label">最终缩放:</span>
+                <span className="debug-label">Final Scale:</span>
                 <code className="debug-value">{finalScale.toFixed(3)} ({(finalScale * 100).toFixed(0)}%)</code>
               </div>
             )}
-          </div>
-
-          <div className="debug-section">
-            <h4>标记统计</h4>
+            {containerSize && (
+              <div className="debug-item">
+                <span className="debug-label">Container:</span>
+                <code className="debug-value">{containerSize.width}×{containerSize.height}px</code>
+              </div>
+            )}
+            {renderedPageSize && renderedPageSize.width > 0 && (
+              <div className="debug-item">
+                <span className="debug-label">Rendered:</span>
+                <code className="debug-value">{Math.round(renderedPageSize.width)}×{Math.round(renderedPageSize.height)}px</code>
+              </div>
+            )}
             <div className="debug-item">
-              <span className="debug-label">当前页标记:</span>
-              <code className="debug-value">{currentPageStamps}</code>
+              <span className="debug-label">Viewport:</span>
+              <code className="debug-value">{window.innerWidth}×{window.innerHeight}px</code>
             </div>
             <div className="debug-item">
-              <span className="debug-label">总标记数:</span>
-              <code className="debug-value">{totalStamps}</code>
+              <span className="debug-label">DPR:</span>
+              <code className="debug-value">{window.devicePixelRatio.toFixed(2)}</code>
             </div>
           </div>
 
+          {/* Stamp State Section */}
           <div className="debug-section">
-            <h4>localStorage 键</h4>
+            <h4>🏷️ Stamp State</h4>
+            <div className="debug-item">
+              <span className="debug-label">Current Page:</span>
+              <code className="debug-value">{currentPageStamps} stamps</code>
+            </div>
+            <div className="debug-item">
+              <span className="debug-label">Total:</span>
+              <code className="debug-value">{totalStamps} stamps</code>
+            </div>
+            <div className="debug-item">
+              <span className="debug-label">Pages:</span>
+              <code className="debug-value">{Object.keys(stampsByPage).length} pages</code>
+            </div>
+          </div>
+
+          {/* Storage Keys Section */}
+          <div className="debug-section">
+            <h4>🔑 localStorage Keys</h4>
             <code className="debug-key">{readerStateKey}</code>
             <code className="debug-key">{stampsKey}</code>
             <code className="debug-key">{onboardingKey}</code>
           </div>
 
-          <button className="debug-dump-button" onClick={handleDumpLocalStorage}>
-            Dump localStorage for this pdfId
-          </button>
+          {/* Actions Section */}
+          <div className="debug-section">
+            <h4>⚡ Actions</h4>
+            {onAddStamp && (
+              <button className="debug-action-button debug-action-primary" onClick={onAddStamp}>
+                ＋ Add Generic Stamp
+              </button>
+            )}
+            <button className="debug-action-button" onClick={handleDumpLocalStorage}>
+              📦 Dump to Console
+            </button>
+            <button className="debug-action-button" onClick={handleInspectStamps}>
+              🏷️ Inspect Stamps
+            </button>
+            <button className="debug-action-button" onClick={handleInspectReaderState}>
+              📄 Inspect Reader State
+            </button>
+            <button className="debug-action-button debug-action-warning" onClick={handleResetOnboarding}>
+              🔄 Reset Onboarding
+            </button>
+          </div>
 
-          <button className="debug-dump-button" onClick={handleInspectStamps} style={{ marginTop: '8px' }}>
-            Inspect stamps storage
-          </button>
-
-          <button className="debug-dump-button" onClick={handleInspectReaderState} style={{ marginTop: '8px' }}>
-            Inspect reader state
-          </button>
-
+          {/* Inspection Results */}
           {stampsInspection && (
             <div className="debug-section">
-              <h4>Stamps JSON</h4>
+              <h4>🏷️ Stamps JSON</h4>
               <pre className="debug-json">{stampsInspection}</pre>
             </div>
           )}
 
           {readerStateInspection && (
             <div className="debug-section">
-              <h4>Reader State JSON</h4>
+              <h4>📄 Reader State JSON</h4>
               <pre className="debug-json">{readerStateInspection}</pre>
             </div>
           )}

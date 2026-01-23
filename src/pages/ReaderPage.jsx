@@ -832,33 +832,6 @@ function ReaderPage() {
   /**
    * 更新 stamp 的 payload（用于 UI 状态等）
    */
-  const handleStampUpdate = (stampId, updates) => {
-    if (import.meta.env.DEV) {
-      console.log('[updateStamp]', { stampId, updates })
-    }
-
-    setStampsByPage(prev => {
-      const updatedPages = { ...prev }
-      
-      // 找到包含该标记的页面并更新
-      for (const page in updatedPages) {
-        const pageStamps = updatedPages[page]
-        const stampIndex = pageStamps.findIndex(s => s.id === stampId)
-        
-        if (stampIndex !== -1) {
-          updatedPages[page] = [
-            ...pageStamps.slice(0, stampIndex),
-            { ...pageStamps[stampIndex], ...updates },
-            ...pageStamps.slice(stampIndex + 1)
-          ]
-          break
-        }
-      }
-      
-      return updatedPages
-    })
-  }
-
   /**
    * 删除标记
    */
@@ -943,10 +916,6 @@ function ReaderPage() {
           ← 返回
         </button>
         <h2>{currentPdf.file.name}</h2>
-        <div className="pdf-id">
-          <span>PDF ID:</span>
-          <code>{pdfId}</code>
-        </div>
       </header>
       
       <div className="reader-toolbar">
@@ -970,21 +939,6 @@ function ReaderPage() {
           </button>
         </div>
         
-        <div className="stage-dimensions">
-          <span className="dimension-label">容器:</span>
-          <span className="dimension-value">
-            {stageWidth} × {stageHeight}
-          </span>
-          {renderedPageSize.width > 0 && (
-            <>
-              <span className="dimension-label" style={{ marginLeft: '12px' }}>渲染:</span>
-              <span className="dimension-value">
-                {Math.round(renderedPageSize.width)} × {Math.round(renderedPageSize.height)}
-              </span>
-            </>
-          )}
-        </div>
-        
         <div className="zoom-controls">
           <button onClick={zoomOut} disabled={userZoom <= 0.5} title="缩小">
             −
@@ -996,10 +950,6 @@ function ReaderPage() {
             +
           </button>
         </div>
-
-        <button className="add-stamp-button" onClick={handleAddStamp} title="添加标记">
-          ＋ 添加标记
-        </button>
       </div>
 
       <main className="reader-content">
@@ -1040,7 +990,6 @@ function ReaderPage() {
               stageWidth={renderedPageSize.width}
               stageHeight={renderedPageSize.height}
               onStampPositionChange={handleStampPositionChange}
-              onStampUpdate={handleStampUpdate}
               onDelete={handleStampDelete}
               isSelectingRegion={isSelectingRegion}
             />
@@ -1085,10 +1034,14 @@ function ReaderPage() {
         <DebugPanel
           pdfId={pdfId}
           currentPage={pageNumber}
+          numPages={numPages}
           zoom={userZoom}
           fitScale={fitScale}
           finalScale={finalScale}
           stampsByPage={stampsByPage}
+          containerSize={stageWidth && stageHeight ? { width: Math.round(stageWidth), height: Math.round(stageHeight) } : null}
+          renderedPageSize={renderedPageSize}
+          onAddStamp={handleAddStamp}
         />
       )}
     </div>

@@ -1,0 +1,21 @@
+/* ═══════════════════════════════════════════════════════════════════
+   CollapsedStampChip - 统一的折叠标记芯片样式
+   所有标记类型使用相同的折叠视觉状态
+   悬停自动展开，无需点击
+   ═══════════════════════════════════════════════════════════════════ */
+
+.collapsed-stamp-chip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 6px 8px;
+}
+
+.collapsed-stamp-chip .chip-icon {
+  font-size: 24px;
+  line-height: 1;
+  opacity: 1;
+  flex-shrink: 0;
+}

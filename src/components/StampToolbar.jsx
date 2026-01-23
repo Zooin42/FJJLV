@@ -6,9 +6,9 @@ import './StampToolbar.css'
  */
 function StampToolbar({ activePanel, onPanelChange }) {
   const tools = [
-    { id: 'rhythm', icon: '♪', label: '节奏' },
-    { id: 'form', icon: '□', label: '形态' },
-    { id: 'tactile', icon: '✋', label: '触觉' }
+    { id: 'rhythm', icon: '🎵', label: '节奏' },
+    { id: 'form', icon: '🧱', label: '形态' },
+    { id: 'tactile', icon: '👋', label: '触觉' }
   ]
 
   return (

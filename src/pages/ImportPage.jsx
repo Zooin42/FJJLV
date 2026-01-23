@@ -70,8 +70,8 @@ function ImportPage() {
   return (
     <div className="import-page">
       <div className="import-container">
-        <h1>PDF 阅读器</h1>
-        <p className="subtitle">选择一个 PDF 文件开始阅读</p>
+        <h1>Playful Building</h1>
+        <p className="subtitle">多姿多彩的拼搭体验</p>
         
         <div className="file-picker-section">
           <input
@@ -83,7 +83,7 @@ function ImportPage() {
             id="pdf-file-input"
           />
           <label htmlFor="pdf-file-input" className="file-label">
-            {selectedFile ? selectedFile.name : '选择 PDF 文件'}
+            {selectedFile ? selectedFile.name : '请选择一个拼搭说明书'}
           </label>
         </div>
 
