@@ -5,7 +5,7 @@ import { getStickerById } from '../assets/rhythmStickers'
 /**
  * StampItem - 单个标记的可视化组件（卡片式，完整信息展示）
  */
-function StampItem({ stamp, stageWidth, stageHeight, onPositionChange, onStampUpdate, disabled = false }) {
+function StampItem({ stamp, stageWidth, stageHeight, onPositionChange, onStampUpdate, onDelete, disabled = false }) {
   const [isDragging, setIsDragging] = useState(false)
   const dragStartRef = useRef({ x: 0, y: 0, stampX: 0, stampY: 0 })
   
@@ -33,6 +33,22 @@ function StampItem({ stamp, stageWidth, stageHeight, onPositionChange, onStampUp
           uiCollapsed: newCollapsed
         }
       })
+    }
+  }
+
+  // 删除标记
+  const handleDelete = (e) => {
+    e.stopPropagation() // 防止触发拖动
+    
+    if (import.meta.env.DEV) {
+      console.log(`[Delete Stamp] ${stamp.id} (type: ${stamp.type})`)
+    }
+    
+    // 轻量确认：使用简单的 confirm
+    if (window.confirm('确定删除这个标记吗？')) {
+      if (onDelete) {
+        onDelete(stamp.id)
+      }
     }
   }
 
@@ -239,6 +255,13 @@ function StampItem({ stamp, stageWidth, stageHeight, onPositionChange, onStampUp
           <div className="stamp-card-header" style={{ backgroundColor: typeInfo.color }}>
             <span className="stamp-type-icon">{typeInfo.icon}</span>
             <span className="stamp-type-label">{typeInfo.typeLabel}</span>
+            <button 
+              className="header-delete"
+              onClick={handleDelete}
+              title="删除标记"
+            >
+              ×
+            </button>
             <button 
               className="header-toggle"
               onClick={handleToggleCollapse}

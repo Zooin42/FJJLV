@@ -516,6 +516,8 @@ function ReaderPage() {
     }
     setIsSelectingRegion(false)
     setSelectedRegion(null)
+    // 取消选择时关闭Form面板
+    setActivePanel('none')
   }
 
   const goToPrevPage = () => {
@@ -857,13 +859,71 @@ function ReaderPage() {
     })
   }
 
+  /**
+   * 删除标记
+   */
+  const handleStampDelete = (stampId) => {
+    if (import.meta.env.DEV) {
+      console.log('[deleteStamp]', { stampId })
+    }
+
+    setStampsByPage(prev => {
+      const updatedPages = { ...prev }
+      
+      // 找到包含该标记的页面并删除
+      for (const page in updatedPages) {
+        const pageStamps = updatedPages[page]
+        const stampIndex = pageStamps.findIndex(s => s.id === stampId)
+        
+        if (stampIndex !== -1) {
+          // 移除该标记
+          const newPageStamps = [
+            ...pageStamps.slice(0, stampIndex),
+            ...pageStamps.slice(stampIndex + 1)
+          ]
+          
+          // 如果该页没有标记了，移除整个页面键
+          if (newPageStamps.length === 0) {
+            delete updatedPages[page]
+          } else {
+            updatedPages[page] = newPageStamps
+          }
+          
+          if (import.meta.env.DEV) {
+            console.log('[deleteStamp] Removed from page', page, '- remaining:', newPageStamps.length)
+          }
+          break
+        }
+      }
+      
+      return updatedPages
+    })
+  }
+
   const handlePanelChange = (panelId) => {
     // 如果点击的是当前激活的面板，则关闭面板
-    setActivePanel(prevPanel => prevPanel === panelId ? 'none' : panelId)
+    if (activePanel === panelId) {
+      setActivePanel('none')
+      // 关闭时重置Form状态
+      if (panelId === 'form') {
+        setIsSelectingRegion(false)
+        setSelectedRegion(null)
+      }
+    } else {
+      // 打开新面板时，如果是Form面板，清除之前的选择状态
+      if (panelId === 'form') {
+        setIsSelectingRegion(false)
+        setSelectedRegion(null)
+      }
+      setActivePanel(panelId)
+    }
   }
 
   const handlePanelClose = () => {
     setActivePanel('none')
+    // Reset Form panel state when closing
+    setIsSelectingRegion(false)
+    setSelectedRegion(null)
   }
 
   const handleOnboardingDismiss = () => {
@@ -981,6 +1041,7 @@ function ReaderPage() {
               stageHeight={renderedPageSize.height}
               onStampPositionChange={handleStampPositionChange}
               onStampUpdate={handleStampUpdate}
+              onDelete={handleStampDelete}
               isSelectingRegion={isSelectingRegion}
             />
             

@@ -84,12 +84,37 @@ function ManualRegionSelector({ pdfCanvas, pageWidth, pageHeight, onRegionSelect
     setIsProcessing(true)
     
     if (import.meta.env.DEV) {
-      console.log('[ManualRegionSelector] Region selected:', region)
+      console.log('[ManualRegionSelector] Region selected (DOM coords):', region)
+      console.log('[ManualRegionSelector] Canvas size:', {
+        width: pdfCanvas.width,
+        height: pdfCanvas.height
+      })
+      console.log('[ManualRegionSelector] Overlay size (pageWidth/Height):', {
+        width: pageWidth,
+        height: pageHeight
+      })
     }
     
-    // 提取轮廓
+    // 计算坐标转换比例：canvas实际像素 / overlay显示像素
+    const scaleX = pdfCanvas.width / pageWidth
+    const scaleY = pdfCanvas.height / pageHeight
+    
+    // 将DOM坐标转换为canvas坐标
+    const canvasRegion = {
+      x: region.x * scaleX,
+      y: region.y * scaleY,
+      width: region.width * scaleX,
+      height: region.height * scaleY
+    }
+    
+    if (import.meta.env.DEV) {
+      console.log('[ManualRegionSelector] Region converted to canvas coords:', canvasRegion)
+      console.log('[ManualRegionSelector] Scale factors:', { scaleX, scaleY })
+    }
+    
+    // 提取轮廓（使用canvas坐标）
     try {
-      const silhouette = await extractSimpleSilhouette(pdfCanvas, region, {
+      const silhouette = await extractSimpleSilhouette(pdfCanvas, canvasRegion, {
         threshold: 128,
         invert: true,
         maxWidth: 150,
@@ -103,6 +128,7 @@ function ManualRegionSelector({ pdfCanvas, pageWidth, pageHeight, onRegionSelect
         })
       }
       
+      // 返回DOM坐标的region（用于显示），但silhouette已用canvas坐标提取
       onRegionSelect({ region, silhouette })
     } catch (error) {
       console.error('[ManualRegionSelector] Failed to extract silhouette:', error)

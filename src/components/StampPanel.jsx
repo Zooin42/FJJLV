@@ -103,6 +103,16 @@ function StampPanel({
     }
   }, [activePanel])
 
+  // Form Panel 初始化：自动开始区域选择
+  useEffect(() => {
+    if (activePanel === 'form' && !isSelectingRegion && !selectedRegion) {
+      if (import.meta.env.DEV) {
+        console.log('[FormPanel] Auto-starting region selection (fresh)')
+      }
+      onStartRegionSelection?.()
+    }
+  }, [activePanel, isSelectingRegion, selectedRegion, onStartRegionSelection])
+
   // 关闭 Rhythm 提示
   const dismissRhythmHint = () => {
     if (pdfId) {
@@ -226,6 +236,11 @@ function StampPanel({
   }
 
   if (activePanel === 'none') {
+    return null
+  }
+
+  // 当正在选择区域时，隐藏面板让用户可以在PDF上绘制
+  if (isSelectingRegion) {
     return null
   }
 
@@ -446,18 +461,18 @@ function StampPanel({
         </div>
       )}
       
-      {/* 扫描按钮（如果还未选择区域） */}
+      {/* 如果既没有选择区域也不在选择中，说明出现了异常状态，重新触发选择 */}
       {!selectedRegion && !isSelectingRegion && (
         <div className="form-section">
-          <h4 className="section-title">步骤 1: 选择图形区域</h4>
+          <h4 className="section-title">选择图形区域</h4>
+          <p className="section-hint">拖动鼠标绘制矩形框选择图形区域</p>
           <button
             className="btn-scan"
             onClick={onStartRegionSelection}
-            title="手动绘制矩形框选择区域"
+            title="重新绘制区域"
           >
-            🖱️ 绘制区域
+            🖱️ 重新绘制
           </button>
-          <p className="section-hint">拖动鼠标绘制矩形框选择图形区域</p>
         </div>
       )}
 
@@ -465,7 +480,7 @@ function StampPanel({
       {selectedRegion && !isSelectingRegion && (
         <>
           <div className="form-section">
-            <h4 className="section-title">步骤 2: 选择提示问题</h4>
+            <h4 className="section-title">选择提示问题</h4>
             <div className="prompt-list">
               {FORM_PROMPTS.map((prompt) => (
                 <button
@@ -485,7 +500,7 @@ function StampPanel({
           {/* 笔记输入 */}
           <div className="form-section">
             <label htmlFor="form-note-input" className="section-title">
-              步骤 3: 笔记（可选）
+              笔记（可选）
             </label>
             <input
               id="form-note-input"

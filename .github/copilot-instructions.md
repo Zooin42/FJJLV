@@ -26,11 +26,13 @@ src/
   
   components/
     StampLayer.jsx     # Overlay container for current page stamps
-    StampItem.jsx      # Draggable stamp with pointer events
+    StampItem.jsx      # Card-style draggable stamp with collapsible content
     StampToolbar.jsx   # Fixed bottom-right toolbar with 3 stamp type buttons
     StampPanel.jsx     # Full-screen modal for stamp type panels (rhythm/form/tactile)
-    RegionSelector.jsx # Form stamp region detection overlay (canvas-based CV)
+    RegionSelector.jsx # Form stamp CV-based region detection (auto-detect high-contrast areas)
+    ManualRegionSelector.jsx  # Form stamp manual bbox selection (drag to draw rectangle)
     OnboardingOverlay.jsx  # First-time user guide overlay
+    DebugPanel.jsx     # Dev-only draggable debug panel (localStorage inspector)
   
   assets/
     rhythmStickers.js  # Prebuilt rhythm pattern visuals (steps×repeats combinations)
@@ -41,6 +43,8 @@ src/
   utils/
     pdfHash.js         # SHA-256 hash → 24-char pdfId (Web Crypto API)
     stampStorage.js    # localStorage CRUD for stamps by pdfId
+    silhouetteExtractor.js    # Canvas-based CV for Form stamp region extraction
+    silhouetteNormalizer.js   # Normalize silhouette data to Stamp payload format
   
   types/
     stamp.js           # JSDoc typedefs (not TypeScript - pure JS project)
@@ -51,11 +55,11 @@ src/
 2. **ReaderPage** (`/reader/:pdfId`): 
    - Guards: Validates pdfId exists and matches currentPdf.pdfId (redirects to ImportPage on mismatch)
    - Loads File from PdfContext, renders with react-pdf
-   - Loads stamps + reader state (lastPage, lastZoom) from localStorage
+   - Loads stamps + reader state (lastPage, lastZoom) from localStorage using **load-first, save-later pattern**
    - Shows OnboardingOverlay on first visit (tracked via localStorage)
    - Displays stamps via StampLayer, allows adding/dragging stamps
    - Shows DebugPanel in dev mode (import.meta.env.DEV)
-   - Shows DebugPanel in dev mode (import.meta.env.DEV)
+   - Uses **fit-scale zoom model**: `finalScale = fitScale × userZoom` where fitScale auto-adjusts to container, userZoom persists
 
 ### Data Model
 
@@ -146,17 +150,29 @@ Uses **discriminated union** pattern with JSDoc:
 - `getTypeDisplay(stamp)` returns icon, color, label, and hasDetails flag
 - Rhythm stamps with valid payload show `stamp-badge` with "steps×repeats"
 - Tooltip dynamically generated based on stamp type and payload
+- **Collapsible cards**: Stamps can be toggled between expanded/collapsed states
+  - Collapse state stored in `payload.uiCollapsed` (boolean)
+  - Click card header to toggle (stopPropagation prevents dragging)
+  - Collapsed shows only header, expanded shows full payload details
 
 **UI Pattern**: Click toolbar → Opens full-screen StampPanel → Type-specific interfaces
 - **StampToolbar**: Fixed bottom-right, toggles activePanel state
 - **StampPanel**: Modal overlay with type-specific content:
   - **Rhythm Panel**: Sticker grid (steps 2-8 × repeats 2-12) from rhythmStickers.js
-  - **Form Panel**: Prompt template selector + "Draw Region" button → triggers RegionSelector
+  - **Form Panel**: Auto-starts ManualRegionSelector immediately on panel open
+    - Panel hides while user draws rectangle (to avoid blocking PDF interaction)
+    - Panel reappears after region selection with prompt template selector
   - **Tactile Panel**: Gesture selector (6 gestures) + optional feel modifiers (6 feels)
-- **RegionSelector**: Canvas-based computer vision overlay for Form stamps
+- **ManualRegionSelector**: User-drawn rectangle overlay for Form stamps
+  - Auto-triggered when Form panel opens (no extra button click needed)
+  - Click and drag to draw bounding box (minimum 30×30px)
+  - Returns normalized bbox coords (x, y, w, h) on release
+  - Extracts simple silhouette via canvas clipping
+  - ESC key cancels and closes Form panel
+- **RegionSelector**: CV-based auto-detection (currently available but not actively used)
   - Scans PDF canvas for high-contrast regions using edge detection
-  - Displays bounding boxes with hover states
-  - Returns normalized bbox coords (x, y, w, h) on selection
+  - Displays detected bounding boxes with hover states
+  - Alternative to manual selection (may be reintegrated in future)
 - User can add stamps via toolbar buttons OR quick "＋ 添加标记" (creates generic at x=0.85, y=0.15)
 
 ### State Management Pattern
@@ -177,6 +193,41 @@ npm run dev        # Start dev server → http://localhost:3000 (auto-opens)
 npm run build      # Production build → dist/
 npm run preview    # Preview production build locally
 ```
+
+## Testing & Debugging Workflows
+
+### Browser Console Testing Scripts
+The project includes browser-executable test scripts (NOT npm scripts). To use:
+1. Start dev server: `npm run dev`
+2. Open browser DevTools Console (F12)
+3. Copy/paste script content from root test files and press Enter
+
+**Available Test Scripts**:
+- **test-persistence.js**: Comprehensive localStorage persistence verification
+  - Tests data save/load cycle for reader state + stamps
+  - Lists all stored PDFs with diagnostics
+  - Exposes global `window.__verifyPersistence()` helper
+- **testrun-rhythm-stamps.js**: Auto-tests Rhythm stamp creation/rendering/persistence
+- **testrun-form-stamps.js**: Auto-tests Form stamp panel UI + region selection
+- **testrun-tactile-stamps.js**: Auto-tests Tactile stamp gesture selection
+- **add-rhythm-stamp.js**: Quick helper to programmatically add Rhythm stamp
+
+**Pattern**: Scripts use `(function() { ... })()` IIFE to avoid global pollution. Results logged with color-coded pass/fail/warn.
+
+### Manual Testing Guides (Root .md Files)
+- **DEBUGGING_GUIDE.md**: Step-by-step persistence troubleshooting (10-step checklist)
+- **FORM_STAMPS_TEST_GUIDE.md**: UI test plan for Form stamps (manual region selector)
+- **TACTILE_STAMPS_INTEGRATION_TEST.md**: Tactile stamp gesture/feel verification
+- **SILHOUETTE_EXTRACTION_GUIDE.md**: CV-based region extraction (for RegionSelector.jsx)
+
+### Debug Tools in Development
+- **DebugPanel** (auto-shows in dev mode): 
+  - Draggable panel in bottom-right corner
+  - "Dump localStorage" button → logs all ltp_mvp keys
+  - "Inspect stamps" → formatted stamp data
+  - "Inspect reader state" → current page/zoom
+- **Console logging**: All localStorage operations logged with `LOAD`/`SAVE` prefixes
+  - Search Console for `[PDF IMPORT]`, `[READER STATE]`, `[STAMPS]` to trace data flow
 
 ## Code Conventions
 
@@ -223,6 +274,26 @@ const top = stamp.y * stageHeight
 ```
 **Why**: PDF can be zoomed/resized. Storing absolute pixels would break on zoom changes.
 
+### Coordinate Transformation for Region Selection
+[ManualRegionSelector.jsx](src/components/ManualRegionSelector.jsx) handles **two coordinate systems**:
+- **DOM coordinates**: User draws rectangle on overlay (CSS pixels, matches `renderedPageSize`)
+- **Canvas coordinates**: PDF canvas has higher resolution (e.g., 2x for Retina displays)
+
+```js
+// Calculate scale factors
+const scaleX = pdfCanvas.width / pageWidth    // e.g., 1200 / 600 = 2.0
+const scaleY = pdfCanvas.height / pageHeight
+
+// Convert DOM selection to canvas coordinates
+const canvasRegion = {
+  x: domRegion.x * scaleX,
+  y: domRegion.y * scaleY,
+  width: domRegion.width * scaleX,
+  height: domRegion.height * scaleY
+}
+```
+**Why**: Canvas pixel density differs from CSS pixels. Without conversion, cropped regions would be offset or clipped.
+
 ### Drag Implementation Pattern
 [StampItem.jsx](src/components/StampItem.jsx#L29-L42) uses **pointer events** (not mouse events):
 ```js
@@ -235,6 +306,8 @@ document.removeEventListener('pointermove', handlePointerMove)
 document.removeEventListener('pointerup', handlePointerUp)
 ```
 **Why**: Pointer events work on touch+mouse. Document-level listeners prevent losing drag when cursor leaves element.
+
+**Drag vs Click**: StampItem distinguishes drag from click using distance threshold (5px). If pointer moves < 5px, it's a click (toggle collapse). If >= 5px, it's a drag (reposition stamp).
 
 ### Stage Dimension Tracking
 [ReaderPage.jsx](src/pages/ReaderPage.jsx#L88-L104) uses `ResizeObserver` to track PDF canvas size:
@@ -283,6 +356,8 @@ useEffect(() => {
 ```
 **Why**: Without the flag, save-useEffect runs before load-useEffect completes, overwriting saved values with defaults.
 
+**Critical**: Same pattern applies to stamps via `hasLoadedStamps.current` flag. Always use this pattern when syncing state with localStorage to avoid race conditions.
+
 ## Common Tasks
 
 ### Adding a New Stamp Type
@@ -300,6 +375,11 @@ useEffect(() => {
 - Use DebugPanel (dev mode only): Draggable panel with "Dump localStorage" button + stamp inspector
 - To reset: `localStorage.clear()` in console
 
+### Important Current State Notes
+- **RegionSelector vs ManualRegionSelector**: The project has both CV-based auto-detection (RegionSelector.jsx) and manual drawing (ManualRegionSelector.jsx). Currently ReaderPage imports and uses **ManualRegionSelector** for Form stamps. RegionSelector exists but is not actively used in the main flow.
+- **Fit-Scale Zoom Model**: ReaderPage uses a two-tier zoom system: `finalScale = fitScale × userZoom`. Only `userZoom` is persisted to localStorage (not `fitScale`). This is critical for understanding zoom persistence behavior.
+- **Collapsible Stamps**: Stamp collapse state is stored in `payload.uiCollapsed` field. This field is NOT part of the original stamp type definitions but is added dynamically for UI state management.
+
 ### Working with react-pdf
 - Component must be inside `<Document>` wrapper ([ReaderPage.jsx](src/pages/ReaderPage.jsx#L275-L289))
 - `onLoadSuccess` callback provides `numPages` for pagination
@@ -310,3 +390,15 @@ useEffect(() => {
 - **Port 3000**: Custom port in [vite.config.js](vite.config.js#L7) (not default 5173)
 - **Environment variables**: Prefix with `VITE_` to expose to client: `import.meta.env.VITE_API_KEY`
 - **No build tools configured**: No ESLint, Prettier, or testing framework
+
+## Project-Specific Testing Philosophy
+**Why no Jest/Vitest/Playwright?** This project uses a pragmatic browser-based testing approach:
+- **Target environment IS the browser**: Testing localStorage, File API, Canvas, ResizeObserver requires real browser context
+- **Interactive PDF workflows**: Manual testing verifies drag UX, zoom behavior, and visual stamp rendering better than automated tests
+- **Console-driven verification**: Test scripts run in DevTools Console where developers already debug localStorage and component state
+- **No test infrastructure overhead**: Zero setup for Jest config, jsdom mocks, or E2E test flakiness
+
+**When to use which approach**:
+- Pure logic functions (pdfHash.js, stampStorage.js factories) → Could unit test with Vitest if needed
+- UI interactions + browser APIs (drag, zoom, persistence) → Use existing testrun-*.js scripts in Console
+- Visual regression → Manual inspection (no automated visual testing configured)

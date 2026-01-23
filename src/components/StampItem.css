@@ -76,6 +76,28 @@
   flex: 1;
 }
 
+/* 头部删除按钮 */
+.header-delete {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0 4px;
+  opacity: 0.7;
+  transition: all 0.2s ease;
+  pointer-events: auto;
+  line-height: 1;
+  margin-right: 2px;
+}
+
+.header-delete:hover {
+  opacity: 1;
+  color: #ef4444; /* 红色悬停效果 */
+  transform: scale(1.2);
+}
+
 /* 头部切换按钮 */
 .header-toggle {
   background: none;
