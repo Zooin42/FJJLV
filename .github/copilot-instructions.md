@@ -27,6 +27,7 @@ src/
   components/
     StampLayer.jsx     # Overlay container for current page stamps
     StampItem.jsx      # Card-style draggable stamp with collapsible content
+    CollapsedStampChip.jsx  # Unified collapsed stamp chip (hover to expand)
     StampToolbar.jsx   # Fixed bottom-right toolbar with 3 stamp type buttons
     StampPanel.jsx     # Full-screen modal for stamp type panels (rhythm/form/tactile)
     RegionSelector.jsx # Form stamp CV-based region detection (auto-detect high-contrast areas)
@@ -154,6 +155,8 @@ Uses **discriminated union** pattern with JSDoc:
   - Collapse state stored in `payload.uiCollapsed` (boolean)
   - Click card header to toggle (stopPropagation prevents dragging)
   - Collapsed shows only header, expanded shows full payload details
+  - Collapsed stamps use [CollapsedStampChip.jsx](src/components/CollapsedStampChip.jsx) - unified chip that shows type icon on hover
+- **Stamp deletion**: Click "×" button in stamp header to delete (confirms via browser alert)
 
 **UI Pattern**: Click toolbar → Opens full-screen StampPanel → Type-specific interfaces
 - **StampToolbar**: Fixed bottom-right, toggles activePanel state
@@ -194,6 +197,8 @@ npm run build      # Production build → dist/
 npm run preview    # Preview production build locally
 ```
 
+**Port Configuration**: Vite dev server runs on port 3000 (configured in [vite.config.js](vite.config.js#L7-L10)), not the default 5173. The `open: true` setting auto-launches the browser on startup.
+
 ## Testing & Debugging Workflows
 
 ### Browser Console Testing Scripts
@@ -210,6 +215,7 @@ The project includes browser-executable test scripts (NOT npm scripts). To use:
 - **testrun-rhythm-stamps.js**: Auto-tests Rhythm stamp creation/rendering/persistence
 - **testrun-form-stamps.js**: Auto-tests Form stamp panel UI + region selection
 - **testrun-tactile-stamps.js**: Auto-tests Tactile stamp gesture selection
+- **test-stamp-deletion.js**: Tests stamp deletion functionality and persistence
 - **add-rhythm-stamp.js**: Quick helper to programmatically add Rhythm stamp
 
 **Pattern**: Scripts use `(function() { ... })()` IIFE to avoid global pollution. Results logged with color-coded pass/fail/warn.
@@ -402,3 +408,14 @@ useEffect(() => {
 - Pure logic functions (pdfHash.js, stampStorage.js factories) → Could unit test with Vitest if needed
 - UI interactions + browser APIs (drag, zoom, persistence) → Use existing testrun-*.js scripts in Console
 - Visual regression → Manual inspection (no automated visual testing configured)
+
+## E2E Testing Workflow (From README.md)
+
+**Testing Persistence Across Sessions**: Follow the manual E2E test plan documented in [README.md](README.md#L42-L88):
+
+1. **Initial Setup**: Import PDF → Navigate to page 4 → Zoom 125% → Add stamp
+2. **Same-Tab Recovery**: Return to import → Re-import same PDF → Verify state restored (page 4, 125%, stamp present)
+3. **Cross-Tab Recovery**: Open new browser tab → Import same PDF → Verify state restored
+4. **Console Verification**: Watch for `[PDF IMPORT]`, `[READER STATE]`, `[STAMPS]` log messages
+
+**Why this works**: SHA-256 content hashing ensures identical PDFs get same pdfId regardless of filename, enabling cross-session/cross-tab state restoration via localStorage.

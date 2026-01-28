@@ -416,7 +416,7 @@ function StampPanel({
       {isSelectingRegion && (
         <div className="region-selection-info">
           <div className="info-content">
-            <span className="info-icon">�️</span>
+            <span className="info-icon">🖱️</span>
             <span className="info-text">拖动鼠标绘制矩形区域...</span>
           </div>
         </div>
@@ -426,7 +426,7 @@ function StampPanel({
       {selectedRegion && !isSelectingRegion && (
         <div className="region-info">
           <div className="info-header">
-            <span className="info-icon">✅</span>
+            <span className="info-icon">✓</span>
             <span className="info-title">已选择区域</span>
           </div>
           <div className="region-details">
@@ -605,7 +605,7 @@ function StampPanel({
       case 'form':
         return {
           title: '形态标记',
-          icon: '□',
+          icon: '🧱',
           content: renderFormPanel()
         }
       case 'tactile':

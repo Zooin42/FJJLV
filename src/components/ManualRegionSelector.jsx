@@ -116,7 +116,7 @@ function ManualRegionSelector({ pdfCanvas, pageWidth, pageHeight, onRegionSelect
     try {
       const silhouette = await extractSimpleSilhouette(pdfCanvas, canvasRegion, {
         threshold: 128,
-        invert: true,
+        invert: false,  // 不反转：黑色轮廓+白色背景，适合在浅色卡片上显示
         maxWidth: 150,
         maxHeight: 150
       })

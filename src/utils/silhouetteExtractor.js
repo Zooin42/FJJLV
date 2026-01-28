@@ -11,7 +11,7 @@
  * @param {Object} region - 区域边界框 { x, y, width, height }
  * @param {Object} options - 处理选项
  * @param {number} options.threshold - 二值化阈值 (0-255, 默认 128)
- * @param {boolean} options.invert - 是否反转颜色 (默认 false)
+ * @param {boolean} options.invert - 是否反转颜色 (默认 false: 黑色轮廓+白色背景)
  * @param {number} options.maxWidth - 输出最大宽度 (默认 200px)
  * @param {number} options.maxHeight - 输出最大高度 (默认 200px)
  * @returns {Promise<Object>} { dataUrl, width, height, originalRegion }
@@ -19,7 +19,7 @@
 export async function extractSilhouette(sourceCanvas, region, options = {}) {
   const {
     threshold = 128,
-    invert = false,
+    invert = false,  // 默认不反转：深色内容为黑色轮廓，适合浅色背景显示
     maxWidth = 200,
     maxHeight = 200
   } = options
@@ -161,6 +161,11 @@ function convertToGrayscale(sourceCanvas) {
 
 /**
  * 应用阈值生成二值图像（黑白轮廓）
+ * 
+ * 逻辑说明：
+ * - PDF 通常是白色背景（灰度值高）+ 黑色文字/图形（灰度值低）
+ * - 不反转时：深色内容(gray < threshold) → 黑色(0)，浅色背景 → 白色(255)
+ * - 反转时：深色内容 → 白色(255)，浅色背景 → 黑色(0)，这样轮廓会显示为白色形状
  */
 function applyThreshold(sourceCanvas, threshold, invert) {
   const canvas = document.createElement('canvas')
@@ -178,11 +183,16 @@ function applyThreshold(sourceCanvas, threshold, invert) {
     const gray = data[i] // 已经是灰度图，R=G=B
     
     // 根据阈值判断黑白
-    let value = gray < threshold ? 0 : 255
+    // 深色(低灰度值) vs 浅色(高灰度值)
+    const isDark = gray < threshold
     
-    // 可选反转
+    let value
     if (invert) {
-      value = 255 - value
+      // 反转：深色内容显示为白色，浅色背景为黑色（反色轮廓）
+      value = isDark ? 255 : 0
+    } else {
+      // 不反转：保持原样，深色为黑色，浅色为白色
+      value = isDark ? 0 : 255
     }
     
     data[i] = value     // R
@@ -258,11 +268,13 @@ function enhanceEdges(sourceCanvas) {
 /**
  * 快速提取轮廓（仅二值化，不做边缘检测）
  * 用于需要快速预览的场景
+ * 
+ * 默认效果：黑色轮廓 + 白色/透明背景（适合在浅色卡片上显示）
  */
 export async function extractSimpleSilhouette(sourceCanvas, region, options = {}) {
   const {
     threshold = 128,
-    invert = true,  // 默认反转（黑色形状，白色背景）
+    invert = false,  // 默认不反转：深色内容显示为黑色轮廓，浅色背景为白色
     maxWidth = 150,
     maxHeight = 150
   } = options

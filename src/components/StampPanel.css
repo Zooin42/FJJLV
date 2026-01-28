@@ -643,8 +643,13 @@
 }
 
 .info-icon {
-  font-size: 1.5rem;
-  line-height: 1;
+  font-size: 2rem;
+  line-height: 1.2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  min-height: 2rem;
 }
 
 .info-text {
