@@ -87,7 +87,23 @@ function StampPanel({
         
         if (import.meta.env.DEV) {
           console.log('[FormPanel] Auto-selected random prompt:', FORM_PROMPTS[randomIndex].promptText)
+          console.log('[FormPanel] selectedRegion:', selectedRegion)
+          console.log('[FormPanel] Has silhouette:', !!selectedRegion.silhouette)
+          if (selectedRegion.silhouette) {
+            console.log('[FormPanel] Silhouette dataUrl length:', selectedRegion.silhouette.dataUrl?.length)
+          }
         }
+        
+        // 自动滚动到轮廓预览区域
+        setTimeout(() => {
+          const previewElement = document.querySelector('.silhouette-preview')
+          if (previewElement) {
+            previewElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            if (import.meta.env.DEV) {
+              console.log('[FormPanel] Auto-scrolled to silhouette preview')
+            }
+          }
+        }, 100)
       } else {
         setSelectedPrompt(FORM_PROMPTS[0].promptId)
       }
@@ -443,19 +459,35 @@ function StampPanel({
           {/* 轮廓预览 */}
           {selectedRegion.silhouette && (
             <div className="silhouette-preview">
-              <div className="preview-label">形状轮廓:</div>
+              <div className="preview-label">✅ 形状轮廓已提取:</div>
               <div className="preview-image-container">
                 <img 
                   src={selectedRegion.silhouette.dataUrl} 
                   alt="区域轮廓"
                   className="preview-image"
-                  style={{
-                    width: `${selectedRegion.silhouette.width}px`,
-                    height: `${selectedRegion.silhouette.height}px`
+                  onLoad={(e) => {
+                    if (import.meta.env.DEV) {
+                      console.log('[FormPanel] ✅ Silhouette image rendered:', {
+                        naturalWidth: e.target.naturalWidth,
+                        naturalHeight: e.target.naturalHeight,
+                        displayWidth: e.target.width,
+                        displayHeight: e.target.height
+                      })
+                    }
+                  }}
+                  onError={(e) => {
+                    console.error('[FormPanel] ❌ Silhouette image render failed:', e)
                   }}
                 />
               </div>
-              <div className="preview-hint">✨ 此轮廓将包含在标记中</div>
+              <div className="preview-hint">
+                ✨ 此轮廓将显示在标记卡片中 ({selectedRegion.silhouette.width}×{selectedRegion.silhouette.height}px)
+              </div>
+            </div>
+          )}
+          {!selectedRegion.silhouette && import.meta.env.DEV && (
+            <div style={{color: '#ef4444', fontSize: '12px', padding: '8px', border: '1px solid #ef4444', borderRadius: '4px', marginTop: '8px'}}>
+              ⚠️ Debug: No silhouette data in selectedRegion
             </div>
           )}
         </div>

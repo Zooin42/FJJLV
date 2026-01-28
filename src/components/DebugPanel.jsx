@@ -88,6 +88,29 @@ function DebugPanel({ pdfId, currentPage, numPages, zoom, fitScale, finalScale, 
     }
   }
 
+  const handleClearAllData = () => {
+    const keys = Object.keys(localStorage).filter(key => key.startsWith('ltp_mvp::'))
+    
+    if (keys.length === 0) {
+      alert('没有找到 PDF 数据')
+      return
+    }
+
+    const message = `确定要清除所有 PDF 数据吗？\n\n将删除 ${keys.length} 个 localStorage 键，包括：\n- 所有 PDF 的标记\n- 所有阅读状态\n- 所有引导标记\n\n此操作不可撤销！`
+    
+    if (window.confirm(message)) {
+      console.group('🗑️ Clearing All PDF Data')
+      keys.forEach(key => {
+        console.log('删除:', key)
+        localStorage.removeItem(key)
+      })
+      console.groupEnd()
+      alert(`✅ 已清除 ${keys.length} 个数据项。刷新页面以重置应用。`)
+      // 刷新页面
+      window.location.reload()
+    }
+  }
+
   const handlePointerDown = (e) => {
     setIsDragging(true)
     dragStartRef.current = {
@@ -255,6 +278,9 @@ function DebugPanel({ pdfId, currentPage, numPages, zoom, fitScale, finalScale, 
             </button>
             <button className="debug-action-button debug-action-warning" onClick={handleResetOnboarding}>
               🔄 Reset Onboarding
+            </button>
+            <button className="debug-action-button debug-action-danger" onClick={handleClearAllData}>
+              🗑️ Clear All PDF Data
             </button>
           </div>
 

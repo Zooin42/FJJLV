@@ -69,6 +69,7 @@ export async function extractSilhouette(sourceCanvas, region, options = {}) {
 
 /**
  * 从源 canvas 裁剪指定区域
+ * 重要：创建一个"干净"的 canvas 以避免 tainted canvas 问题（屏幕录制等场景）
  */
 function cropRegion(sourceCanvas, region) {
   const { x, y, width, height } = region
@@ -79,17 +80,63 @@ function cropRegion(sourceCanvas, region) {
   const cropW = Math.min(width, sourceCanvas.width - cropX)
   const cropH = Math.min(height, sourceCanvas.height - cropY)
   
+  // 验证裁剪区域有效性
+  if (cropW <= 0 || cropH <= 0) {
+    const error = new Error(`Invalid crop region: width=${cropW}, height=${cropH}`)
+    if (import.meta.env.DEV) {
+      console.error('[Silhouette] Crop region invalid:', {
+        sourceCanvas: { width: sourceCanvas.width, height: sourceCanvas.height },
+        region,
+        calculated: { cropX, cropY, cropW, cropH }
+      })
+    }
+    throw error
+  }
+  
+  // 创建新的"干净" canvas
   const canvas = document.createElement('canvas')
   canvas.width = cropW
   canvas.height = cropH
-  const ctx = canvas.getContext('2d')
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
   
-  // 裁剪并绘制
-  ctx.drawImage(
-    sourceCanvas,
-    cropX, cropY, cropW, cropH,  // 源区域
-    0, 0, cropW, cropH            // 目标区域
-  )
+  // 填充白色背景（防止透明区域）
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, cropW, cropH)
+  
+  try {
+    // 方法1: 尝试直接绘制（可能会因 tainted canvas 失败）
+    ctx.drawImage(
+      sourceCanvas,
+      cropX, cropY, cropW, cropH,  // 源区域
+      0, 0, cropW, cropH            // 目标区域
+    )
+    
+    if (import.meta.env.DEV) {
+      console.log('[Silhouette] Cropped via drawImage:', { width: cropW, height: cropH })
+    }
+  } catch (drawError) {
+    // 方法2: 如果 drawImage 失败，使用 getImageData（绕过 tainted 限制）
+    console.warn('[Silhouette] drawImage failed, using getImageData fallback:', drawError)
+    
+    try {
+      const sourceCtx = sourceCanvas.getContext('2d')
+      const imageData = sourceCtx.getImageData(cropX, cropY, cropW, cropH)
+      ctx.putImageData(imageData, 0, 0)
+      
+      if (import.meta.env.DEV) {
+        console.log('[Silhouette] Cropped via getImageData:', { width: cropW, height: cropH })
+      }
+    } catch (getImageDataError) {
+      console.error('[Silhouette] getImageData also failed:', getImageDataError)
+      // 创建一个灰色占位符
+      ctx.fillStyle = '#cccccc'
+      ctx.fillRect(0, 0, cropW, cropH)
+      ctx.fillStyle = '#666666'
+      ctx.font = '12px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText('无法读取', cropW / 2, cropH / 2)
+    }
+  }
   
   return canvas
 }
@@ -270,6 +317,8 @@ function enhanceEdges(sourceCanvas) {
  * 用于需要快速预览的场景
  * 
  * 默认效果：黑色轮廓 + 白色/透明背景（适合在浅色卡片上显示）
+ * 
+ * 特别处理屏幕录制场景：通过多层处理确保生成的 canvas 不会被标记为 tainted
  */
 export async function extractSimpleSilhouette(sourceCanvas, region, options = {}) {
   const {
@@ -280,18 +329,108 @@ export async function extractSimpleSilhouette(sourceCanvas, region, options = {}
   } = options
 
   try {
+    // 所有处理步骤都会创建新的"干净"canvas
     const croppedCanvas = cropRegion(sourceCanvas, region)
     const scaledCanvas = scaleCanvas(croppedCanvas, maxWidth, maxHeight)
     const grayscaleCanvas = convertToGrayscale(scaledCanvas)
     const silhouetteCanvas = applyThreshold(grayscaleCanvas, threshold, invert)
     
-    const dataUrl = silhouetteCanvas.toDataURL('image/png')
+    // 这个 canvas 应该是完全干净的，因为所有源数据都经过了重新处理
+    // 尝试多种方法转换为可用格式
+    let dataUrl
+    let conversionMethod = 'unknown'
+    
+    try {
+      // 方法1: 标准 toDataURL
+      dataUrl = silhouetteCanvas.toDataURL('image/png')
+      conversionMethod = 'toDataURL'
+      
+      if (import.meta.env.DEV) {
+        console.log('[Silhouette] toDataURL succeeded, length:', dataUrl.length)
+      }
+    } catch (toDataURLError) {
+      console.warn('[Silhouette] toDataURL failed, trying toBlob:', toDataURLError.message)
+      
+      try {
+        // 方法2: toBlob → 转换为 base64 data URL（持久化）
+        const blob = await new Promise((resolve, reject) => {
+          silhouetteCanvas.toBlob((blob) => {
+            if (blob) resolve(blob)
+            else reject(new Error('toBlob returned null'))
+          }, 'image/png')
+        })
+        
+        // 将 blob 转换为 base64 data URL（而不是 Object URL）
+        dataUrl = await new Promise((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onloadend = () => resolve(reader.result)
+          reader.onerror = reject
+          reader.readAsDataURL(blob)
+        })
+        
+        conversionMethod = 'toBlob-to-base64'
+        
+        if (import.meta.env.DEV) {
+          console.log('[Silhouette] toBlob→base64 succeeded, length:', dataUrl.length)
+        }
+      } catch (toBlobError) {
+        console.warn('[Silhouette] toBlob failed, using manual encoding:', toBlobError.message)
+        
+        // 方法3: 手动编码 - 从 ImageData 创建干净的 canvas
+        try {
+          const imageData = silhouetteCanvas.getContext('2d').getImageData(
+            0, 0, silhouetteCanvas.width, silhouetteCanvas.height
+          )
+          
+          // 创建全新的干净 canvas
+          const cleanCanvas = document.createElement('canvas')
+          cleanCanvas.width = silhouetteCanvas.width
+          cleanCanvas.height = silhouetteCanvas.height
+          const cleanCtx = cleanCanvas.getContext('2d')
+          cleanCtx.putImageData(imageData, 0, 0)
+          
+          // 尝试从干净的 canvas 导出
+          dataUrl = cleanCanvas.toDataURL('image/png')
+          conversionMethod = 'manual-clean-canvas'
+          
+          if (import.meta.env.DEV) {
+            console.log('[Silhouette] Manual clean canvas succeeded')
+          }
+        } catch (manualError) {
+          console.error('[Silhouette] All conversion methods failed:', manualError)
+          
+          // 方法4: SVG 占位符（最后备用）
+          dataUrl = 'data:image/svg+xml,' + encodeURIComponent(
+            `<svg xmlns="http://www.w3.org/2000/svg" width="${silhouetteCanvas.width}" height="${silhouetteCanvas.height}" viewBox="0 0 ${silhouetteCanvas.width} ${silhouetteCanvas.height}">
+              <rect width="100%" height="100%" fill="#f8f8f8"/>
+              <text x="50%" y="50%" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#999" dy=".3em">
+                📷 录屏中
+              </text>
+            </svg>`
+          )
+          conversionMethod = 'svg-fallback'
+          
+          console.warn('[Silhouette] Using SVG placeholder due to canvas restrictions')
+        }
+      }
+    }
+    
+    if (import.meta.env.DEV) {
+      console.log('[Silhouette] Conversion method used:', conversionMethod)
+    }
+    
+    // 验证 dataUrl 有效性
+    if (!dataUrl || !dataUrl.startsWith('data:')) {
+      console.error('[Silhouette] Invalid dataUrl generated:', dataUrl?.substring(0, 50))
+      throw new Error(`Invalid dataUrl (method: ${conversionMethod})`)
+    }
     
     return {
       dataUrl,
       width: silhouetteCanvas.width,
       height: silhouetteCanvas.height,
-      originalRegion: region
+      originalRegion: region,
+      conversionMethod  // 调试信息
     }
   } catch (error) {
     console.error('[Silhouette] Simple extraction failed:', error)

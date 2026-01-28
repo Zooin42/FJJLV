@@ -195,6 +195,18 @@
   border-color: #fbbf24;
 }
 
+.debug-action-danger {
+  border-color: #ef4444;
+  color: #f87171;
+  background-color: #450a0a;
+}
+
+.debug-action-danger:hover {
+  background-color: #7f1d1d;
+  border-color: #dc2626;
+  color: #fca5a5;
+}
+
 .debug-dump-button {
   width: 100%;
   padding: 8px 12px;

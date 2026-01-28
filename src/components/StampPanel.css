@@ -18,7 +18,7 @@
   border-radius: 12px;
   width: 90%;
   max-width: 500px;
-  max-height: 80vh;
+  max-height: 85vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -701,32 +701,53 @@
 /* 轮廓预览 */
 .silhouette-preview {
   margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 1rem;
+  border: 2px solid rgba(16, 185, 129, 0.5);
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.05);
+  animation: highlightPreview 0.5s ease-out;
+}
+
+@keyframes highlightPreview {
+  0% {
+    background: rgba(16, 185, 129, 0.3);
+    transform: scale(1.02);
+  }
+  100% {
+    background: rgba(16, 185, 129, 0.05);
+    transform: scale(1);
+  }
 }
 
 .preview-label {
-  color: #94a3b8;
-  font-size: 0.85rem;
-  margin-bottom: 0.5rem;
+  color: #10b981;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
 }
 
 .preview-image-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  padding: 1rem;
-  min-height: 100px;
+  background: white;
+  border: 2px solid rgba(59, 130, 246, 0.5);
+  border-radius: 8px;
+  padding: 1.5rem;
+  min-height: 200px;
+  position: relative;
 }
 
 .preview-image {
   display: block;
+  width: auto;
+  height: auto;
   max-width: 100%;
-  image-rendering: crisp-edges;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  max-height: 200px;
+  image-rendering: auto;
+  image-rendering: -webkit-optimize-contrast;
+  filter: contrast(1.2);
+  border: 2px solid #333;
 }
 
 .preview-hint {

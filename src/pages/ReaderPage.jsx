@@ -486,17 +486,48 @@ function ReaderPage() {
       if (import.meta.env.DEV) {
         console.log('[PDF Canvas] Captured:', {
           width: canvas.width,
-          height: canvas.height
+          height: canvas.height,
+          clientWidth: canvas.clientWidth,
+          clientHeight: canvas.clientHeight
         })
       }
+    } else if (import.meta.env.DEV) {
+      console.warn('[PDF Canvas] Canvas not found in pdfPageRef')
     }
   }, [pageNumber, finalScale])
 
   // Form Path 区域选择处理
   const handleStartRegionSelection = () => {
-    if (import.meta.env.DEV) {
-      console.log('[RegionSelection] Starting...')
+    // 实时获取最新的 canvas（而不是使用 ref 缓存）
+    const freshCanvas = pdfPageRef.current?.querySelector('canvas')
+    
+    if (!freshCanvas) {
+      console.error('[RegionSelection] PDF canvas not found')
+      alert('PDF 画布未找到，请稍后再试')
+      return
     }
+    
+    // 验证 canvas 有效性
+    if (freshCanvas.width === 0 || freshCanvas.height === 0) {
+      console.error('[RegionSelection] Invalid canvas dimensions:', {
+        width: freshCanvas.width,
+        height: freshCanvas.height
+      })
+      alert('PDF 画布尺寸无效，请等待加载完成')
+      return
+    }
+    
+    // 更新 ref 为最新的 canvas
+    pdfCanvasRef.current = freshCanvas
+    
+    if (import.meta.env.DEV) {
+      console.log('[RegionSelection] Starting with FRESH canvas:', {
+        width: freshCanvas.width,
+        height: freshCanvas.height,
+        timestamp: Date.now()
+      })
+    }
+    
     setIsSelectingRegion(true)
     setSelectedRegion(null)
   }
